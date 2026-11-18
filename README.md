@@ -1,0 +1,347 @@
+# FM27 Face Generator
+
+🇩🇪 *Deutsche Anleitung: [LIESMICH.md](LIESMICH.md)*
+
+Creates **realistic player faces for Football Manager 27** in the right format
+(**250 × 250 px, PNG**) – e.g. for your new youth intake. You then simply drag the images onto
+the player in the game with the **FaceDrop** mod.
+
+**Features at a glance**
+
+- **Country of birth** (131 countries) and **ethnicity** – automatically matched to the country or set manually
+- **Dual heritage**, e.g. "born in Germany, parents from Ghana" or "one parent from Morocco"
+- **Age** (also as a range), **gender**, hair colour, hairstyle, facial hair, expression, clothing/colour, background
+- **Import the player list from FM** – a matching image for every youth player, named after the player
+- **Personality** from FM (e.g. Mercenary → neck tattoo & gold chain, Model Professional → well-groomed & focused)
+- **Ageing set** – the same face at 16, 20, 25, 30 … years
+- **Free choice of save location**, including automatic detection of your FM folder
+- **FM cut-out style** like real facepacks: the head fills the image, background **cut out to transparent** by AI
+- Gallery with "Re-roll", "Delete", "Show in folder"; log file `generiert.csv`
+- **8 languages**: German, English, Italian, French, Spanish, Portuguese, Japanese, Korean
+
+---
+
+## Installation (step by step)
+
+You need **Windows 10 or 11** and an **internet connection** (for the free online image AI).
+You do **not** need to install Python or anything else.
+
+### 1. Download the program
+
+**Option A – Release (easiest):**
+1. On this project's GitHub page, click **Releases** on the right.
+2. Download **`FM27-FaceGenerator-windows.zip`** from the latest release.
+
+**Option B – from the automatic build:**
+1. Be signed in to GitHub (downloads from "Actions" require an account).
+2. Click the **Actions** tab at the top → choose **"Windows-EXE bauen"** on the left.
+3. Open the latest run with a green tick ✅.
+4. At the very bottom under **Artifacts**, click **FM27-FaceGenerator-windows** → a ZIP file is downloaded.
+
+### 2. Extract
+
+1. In your Downloads folder, **right-click the ZIP → "Extract All…"**.
+2. Move the extracted folder to a permanent place, e.g. `C:\Tools\FM27 Face Generator`
+   or simply your desktop. (Don't run it directly from inside the ZIP!)
+3. The folder contains: `FM27-FaceGenerator.exe`, this `README.md` (English), the German guide
+   `LIESMICH.md` and `laender.beispiel.json`.
+
+### 3. First start
+
+1. **Double-click** `FM27-FaceGenerator.exe`. The first start takes a few seconds.
+2. If **"Windows protected your PC"** (SmartScreen) appears:
+   click **"More info"** → **"Run anyway"**. This happens because the program isn't commercially code-signed.
+3. If your **antivirus** complains: some scanners react to self-extracting programs (PyInstaller).
+   The EXE is built automatically and publicly traceable from this source code.
+4. A small **language selection** window appears (default: German). Pick your language and click **OK**.
+   Tick **"Don't ask again at startup"** to skip this window in future.
+5. Optional: right-click the EXE → **"Send to" → "Desktop (create shortcut)"**.
+
+### 4. Choose where to save
+
+At the bottom of the window next to **"Save to:"**:
+
+- **"Find FM folder"** – automatically finds `Documents\Sports Interactive\Football Manager …`
+  and suggests `…\graphics\FM27 Faces` (choose "No" to pick a folder inside the FM directory yourself).
+- **"Choose folder…"** – pick any folder.
+- **"Open"** – opens the folder in Explorer.
+
+The save location and all other settings are remembered automatically.
+
+> **Tip:** Since you drag the images into the game with FaceDrop, the folder can be anywhere.
+> A dedicated subfolder (e.g. `FM27 Faces`) keeps things tidy.
+
+### Changing the language
+
+Any time via the **"Language: …"** button at the bottom right. The interface switches immediately –
+settings, gallery and a loaded player list are kept.
+
+Available: Deutsch, English, Italiano, Français, Español, Português, 日本語, 한국어.
+Countries, hair colours, personalities etc. are translated too. In languages other than German and English,
+personalities also show the English FM name, e.g. "Mercenario (Mercenary)".
+
+### Updates
+
+Download the new version (as above) and simply replace the old `FM27-FaceGenerator.exe`.
+Your settings are kept (stored in `%APPDATA%\FM27FaceGenerator`).
+
+### Uninstall
+
+Delete the program folder. Optionally also delete `%APPDATA%\FM27FaceGenerator` (settings and cut-out model).
+
+---
+
+## Usage
+
+### Single images / a whole intake
+
+1. **Player** tab: choose the **country of birth** (typing filters the list) and set the age (default 15–17).
+2. Optionally set details in the **Look** tab, e.g. a shirt in your club colours.
+3. Enter the **count** at the bottom and click **"Generate images"**.
+4. Don't like an image? Click it in the gallery → **"Re-roll"** (replaces the file).
+5. In the game, drag the matching PNG onto the player with FaceDrop.
+
+### Dual heritage (parents from another country)
+
+In the **Player** tab choose a second country under **"Parents' origin"** and set **"Parents"**:
+
+| Setting | Result | Example |
+|---|---|---|
+| **Both parents from this country** | Looks like the parents' country | born in Germany, parents from Ghana |
+| **One parent (mixed)** | Mixed heritage from both countries | French father, Moroccan mother |
+| **Random** | one or the other per image | for a diverse intake |
+
+The distribution is shown right below. "—" means no second origin.
+
+### Importing the player list from Football Manager
+
+This gives every youth player a matching face automatically – with their name as the file name.
+
+**Export in Football Manager:**
+1. Open the player list (e.g. youth team or youth intake preview).
+2. Adjust the view so that at least the columns **Name**, **Nat** (nationality) and **Age** are visible.
+   Optional: **2nd nationality**, **Personality** and **UID** (unique ID).
+3. Select all players (**Ctrl + A**), then press **Ctrl + P** ("Print screen").
+4. Choose **Web page** (`.html`) or **Text file** (`.txt`) and save.
+
+**In the generator:**
+1. Open the **"Player list (FM import)"** tab on the right → **"Load list…"** → choose the file.
+2. Check: players with an **orange** country weren't recognised – select them and fix the country at the bottom ("set").
+3. Choose the **file name**: `Name` (e.g. `Jonas Müller.png`), `UID` or `Name_UID`.
+4. **"With 2nd nationality"** controls how players with two nationalities look (see table above).
+5. **"Generate for all"** (or "For selection" / "Only without image"). The status shows ✓ and the file name.
+   Double-click a player to open their image.
+
+Age, country, 2nd nationality and personality come from the list; gender, look and background from the
+settings on the left. Players without a personality in the list get the setting from the "Personality" tab.
+Below the list you can change country, 2nd country and personality for selected players afterwards.
+Your own CSV file (e.g. from Excel) works too – header e.g. `Name;Nation;Age;2nd Nation;Personality;UID`.
+
+**FM in another language?** No problem: column names (e.g. *Nome/Età/Nazionalità*, *Nom/Âge*, *名前/年齢/国籍*),
+country names (e.g. *Germania*, *Allemagne*, *ドイツ*, *독일*) and personalities are recognised in all 8 languages –
+as are the usual FIFA codes such as `GER`, `FRA`, `JPN`.
+
+### Personality
+
+In the **Personality** tab you choose one of the 40 FM personalities.
+It sets the **facial expression** and adds matching **features**, for example:
+
+| Personality | Typical features |
+|---|---|
+| Mercenary | neck tattoo, gold chain, diamond earrings, designer haircut, smug grin |
+| Model Professional / Model Citizen | well-groomed, neat haircut, no jewellery, calm and focused or friendly |
+| Perfectionist | perfectly styled, groomed eyebrows, intense gaze |
+| Born Leader / Charismatic Leader | confident posture, assured look |
+| Temperamental / Unsporting | furrowed brow, scar, dark look, maybe a tattoo |
+| Casual / Slack | messy hair, tired look, wrinkled shirt |
+| Jovial / Light-Hearted | big warm smile |
+| Low Self-Belief | shy, uncertain expression |
+
+- **Intensity**: Subtle (1 feature), Normal (2), Strong (3) – which features are used is randomised per image.
+- **Tattoos from**: minimum age for tattoos (default 16). Younger players get e.g. an earring or chain instead.
+- **Random**: every image gets a random personality.
+- The features of each personality are shown in the tab as soon as you select it.
+
+### Ageing set (the same face at different ages)
+
+1. Select an image in the gallery.
+2. Below the gallery, enter the ages under **"Ageing set"**, e.g. `16, 20, 25, 30, 34`
+   (ranges like `25-28` work too).
+3. Click **"Create"**. Files like `Jonas Müller_mit20.png`, `Jonas Müller_mit30.png` … are created.
+
+Origin, hair, clothing, personality etc. stay the same; from the mid-20s more mature features are added,
+from the early 30s fine lines and later grey temples.
+
+> **Honest note:** with the **online AI** the person looks *similar* at every age but isn't always exactly
+> the same. With **local Stable Diffusion** the original image is used as a template (image-to-image) –
+> the face is preserved much better.
+
+---
+
+## Which image AI is used?
+
+The faces are created by an image AI; the program then crops them and scales them to 250 × 250 px.
+Choose in the **AI** tab:
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Pollinations (online, free)** – default | No account, no graphics card needed, ready to go | Internet required, without a key only **1 image every 45 seconds** |
+| **Local: Stable Diffusion WebUI** (AUTOMATIC1111 / Forge) | Offline, no limits, best quality with photorealistic models, better ageing sets | Own installation + NVIDIA graphics card (approx. 6–8 GB VRAM or more) |
+
+**Pollinations without a key:** 1 image every 45 seconds is allowed. The program respects this automatically
+and shows the waiting time at the bottom ("Free limit … 30 s left"). 20 images take about 15 minutes – just let it run.
+The "pollinations.ai" watermark added at the bottom right without a key is cropped off automatically.
+
+**Faster with a key:** get a key at *enter.pollinations.ai* (images then cost a small amount of credit)
+and enter it under "API key" in the *AI* tab. This removes the waiting time and the watermark.
+
+**Local:** see the next section.
+
+---
+
+## Setting up local Stable Diffusion (free, unlimited, best quality)
+
+Runs entirely on your PC: no internet needed, no waiting, no watermark, no costs apart from electricity.
+Ageing sets work much better (the face stays recognisably the same person).
+
+**Requirements:** NVIDIA graphics card with at least 6 GB VRAM (8 GB+ recommended), approx. 25 GB of free disk space.
+An RTX 3060 / 4060 or better is ideal – e.g. an **RTX 4080 Laptop GPU (12 GB)** creates an image in about 5–10 seconds.
+
+> For large graphics cards, Windows sometimes shows a wrong "Adapter RAM" value (e.g. 1,048,576 bytes) –
+> that's a known display bug and not a problem.
+
+### Step 1 – Update the graphics driver
+Install the latest driver via the **NVIDIA App** (or nvidia.com → Drivers). Restart afterwards.
+
+### Step 2 – Download Stable Diffusion WebUI Forge
+1. Open the GitHub page **"lllyasviel/stable-diffusion-webui-forge"**.
+2. In the **"Installing Forge"** section (or under *Releases*), download **one** one-click package –
+   recommended: **`webui_forge_cu121_torch231.7z`** (approx. 1.7 GB, Python included).
+   You don't need the other variants.
+   > **Download stuck at "1.7 GB of 1.7 GB" / "Unconfirmed … .crdownload"?**
+   > The file is complete, Chrome is just waiting for your confirmation: press **Ctrl + J** in Chrome
+   > and click **"Keep"** or **"Download anyway"**. You may also need to wait for the virus scan to finish.
+   > Afterwards the file has its proper name `webui_forge_….7z`.
+3. Extract it with **7-Zip** (free, 7-zip.org) – ideally into a short path **without spaces**,
+   e.g. `C:\AI\Forge`. Not into "Program Files" or onto the desktop.
+
+### Step 3 – One-time setup
+1. In the Forge folder, double-click **`update.bat`** and wait until the window closes.
+2. Double-click **`run.bat`**. The first start takes **10–20 minutes** (downloads packages and a default model).
+   It's ready when the browser opens with the Forge interface, or the black window shows
+   `Running on local URL: http://127.0.0.1:7860`.
+3. Close Forge again (close the black window).
+
+### Step 4 – Enable the interface for the generator
+1. Open the **`webui`** subfolder inside the Forge folder.
+2. **Right-click `webui-user.bat` → "Edit"** (opens Notepad).
+3. Change the line `set COMMANDLINE_ARGS=` to:
+   ```
+   set COMMANDLINE_ARGS=--api
+   ```
+4. Save and close.
+
+### Step 5 – Download a photorealistic model
+The bundled default model produces rather artificial faces. Much better for real player photos is **RealVisXL**:
+1. Search for **"RealVisXL V5.0"** on **civitai.com** (free account) or **huggingface.co**.
+2. Download the file `RealVisXL_V5.0…safetensors` (approx. 6.5 GB).
+3. Put it into the **`webui\models\Stable-diffusion`** folder in the Forge directory.
+
+Alternatives with similarly good results: "Juggernaut XL", "epiCRealism XL".
+
+**Normal or "Lightning"?** Both RealVisXL variants work. *Lightning* is about 5× faster
+(only ~6 steps), the normal version slightly more detailed. The generator detects Lightning/Turbo models
+automatically and then uses suitable values (6 steps, CFG 1.5, sampler DPM++ SDE Karras) –
+you don't need to change anything.
+
+### Step 6 – Start and connect
+1. Start **`run.bat`** and wait until the Forge interface appears in the browser.
+2. In Forge, on the **"Txt2img"** tab, set **"UI"** to **"xl"** in the bar at the very top and choose the
+   **RealVisXL** model under **"Checkpoint"** (once – it's remembered).
+   You don't need the "Checkpoint Merger", "Img2img", "Extras" etc. tabs.
+3. In the FM27 Face Generator: **AI** tab → image AI **"Local: Stable Diffusion WebUI"**.
+   Size 1024 px and "no pause" are set automatically.
+4. Click **"Test connection"** – you should see "Connection OK" and the RealVisXL model.
+5. Generate images as usual. Forge (the black window) must stay open.
+
+**Recommended values** (preset): generation size 1024, 30 steps, CFG 5
+(automatically 6 steps, CFG 1.5 for Lightning models).
+
+| Problem | Solution |
+|---|---|
+| "No connection to http://127.0.0.1:7860" | Forge isn't running – start `run.bat` and wait until the interface appears |
+| "The interface (API) is turned off" | Step 4: add `--api` to `webui\webui-user.bat`, restart Forge |
+| Faces look artificial/painted | Select the RealVisXL model at the top of Forge (steps 5/6) |
+| "Out of memory" error | Set the generation size to 768 or close other programs (games!) |
+| Laptop: very slow | Plug in the laptop, set Windows power mode to "Best performance" |
+
+Tip: running Football Manager and Forge at the same time works, but better generate images beforehand –
+both need video memory.
+
+---
+
+## Customising countries / distributions
+
+The ethnicity distributions per country are rough approximations. To adjust or extend them:
+rename `laender.beispiel.json` to **`laender.json`**, put it **next to the EXE** and edit it (e.g. with Notepad).
+Country keys are the German country names used internally (e.g. `Deutschland`, `Färöer`).
+
+```json
+{
+  "Färöer": { "en": "Faroe Islands", "mix": { "EUR_N": 100 } }
+}
+```
+
+Ethnicity codes: `EUR_N` (Northern Europe), `EUR_W` (Western/Central Europe), `EUR_S` (Southern Europe),
+`EUR_E` (Eastern Europe), `BALKAN`, `CAUCASUS`, `MIDEAST`, `AFR_N` (North Africa), `AFR_W` (West Africa),
+`AFR_C` (Central/Southern Africa), `AFR_E` (East Africa), `AFRO_DIA` (Afro-Caribbean/African American),
+`LAT` (Latin America), `INDIG` (indigenous), `ASIA_E`, `ASIA_SE`, `ASIA_S`, `ASIA_C`, `PACIFIC`, `MIXED`.
+
+Countries the program doesn't know still work – the AI then decides from the country name alone.
+
+---
+
+## Tips for realistic results
+
+- The default is **"Transparent (FM cut-out)"** – cropping and cut-out are modelled on real FM facepack images
+  (the head fills the image, hair reaches the top edge, neck and collar at the bottom).
+- Adjust **Zoom** and **Face height** (Output tab) to match your other facepack images if needed
+  (default: zoom 1.6 / face height 0.56).
+- A **training top** in club colours (Look tab → Shirt colour) looks like a club media day photo.
+- Keep **skin details** enabled – slight blemishes/freckles look less "AI-smooth".
+- Add your own English keywords in the **Extra** field, e.g. `green eyes, small scar on chin`.
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| Long waiting time between images | Normal without a key (free limit 45 s). For more speed: enter an API key (AI tab) |
+| "Pollinations rejected the request" (HTTP 401/403) | Check or enter the API key in the AI tab |
+| Features (e.g. tattoo) missing from the image | Choose intensity "Strong" or "Re-roll" – the AI doesn't render every detail every time |
+| "Local Stable Diffusion WebUI not reachable" | WebUI isn't running or was started without `--api`; check the address |
+| Face not centred | Adjust zoom/face height in the Output tab or "Re-roll" |
+| First image takes long ("One-time download of the cut-out model") | Normal: for the first transparent image the AI cut-out model (approx. 170 MB) is downloaded once and stored in `%APPDATA%\FM27FaceGenerator\models` |
+| Background remnants at hair/edges | "Re-roll" or choose background "White"/"Light grey" (then without cut-out) |
+| Players in the list are orange | Country not recognised → select them and use "set" for the country |
+| List isn't recognised | Show at least the columns Name + Nat (or Age) in FM and export again |
+
+## Building it yourself (for tinkerers)
+
+Install Python 3.10+ and double-click `build.bat` → `dist\FM27-FaceGenerator.exe`.
+To run without building an EXE: `pip install -r requirements.txt` and `python run.py`.
+
+**Adding or improving translations:** all texts live in `fm27facegen/locales.py` (one line per text with all
+8 languages side by side), country names in `fm27facegen/country_names.py`. A test checks that every text
+exists in all languages with the same placeholders.
+
+## Further ideas
+
+- **Classic facepack format**: files as `r-<UID>.png` + an automatically generated `config.xml` (usable without FaceDrop).
+- **More AI providers**: ComfyUI (local) or paid services with very high quality.
+- **Style matching**: automatically adapt colour look/brightness to a reference image from your facepack.
+
+## Notes
+
+- The faces are AI-generated and don't show real people.
+- When generating online, only the description of the face is sent to the service – no player names
+  and no personal data.

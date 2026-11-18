@@ -1,0 +1,4 @@
+{
+  "Färöer": { "en": "Faroe Islands", "mix": { "EUR_N": 100 } },
+  "Deutschland": { "en": "Germany", "mix": { "EUR_W": 50, "MIDEAST": 15, "AFR_W": 10, "BALKAN": 8, "EUR_E": 5, "AFR_N": 4, "MIXED": 8 } }
+}
