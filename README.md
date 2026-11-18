@@ -314,6 +314,11 @@ Countries the program doesn't know still work – the AI then decides from the c
 
 ---
 
+## Keyboard use
+
+- **Country fields**: type (e.g. `Port`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
+- **All other drop-downs**: click and type – jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
+
 ## Tips for realistic results
 
 - The default is **"Transparent (FM cut-out)"** – cropping and cut-out are modelled on real FM facepack images

@@ -11,6 +11,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -213,7 +214,58 @@ class App(tk.Tk):
         cb = ttk.Combobox(parent, textvariable=self.v[var], state="normal" if editable else "readonly", width=width)
         self.ocb[var] = cb
         self._set_options(var, keys, labeler)
+        if editable:
+            self._bind_search_field(cb, var)
+        else:
+            self._bind_typeahead(cb, var)
         return cb
+
+    # ---- Tastatur: tippen + Enter
+    @staticmethod
+    def _best_match(labels: list[str], text: str) -> str | None:
+        """Bester Treffer: exakt > Anfang > irgendwo enthalten (ohne Groß-/Kleinschreibung)."""
+        text = text.strip().casefold()
+        if not text:
+            return None
+        for test in (lambda l: l.casefold() == text, lambda l: l.casefold().startswith(text),
+                     lambda l: text in l.casefold()):
+            hit = next((l for l in labels if test(l)), None)
+            if hit:
+                return hit
+        return None
+
+    def _bind_typeahead(self, cb: ttk.Combobox, var: str) -> None:
+        """Auswahlfelder: Tippen springt zum passenden Eintrag, Enter übernimmt."""
+        state = {"buf": "", "t": 0.0}
+
+        def on_key(e):
+            if e.keysym in ("Return", "KP_Enter"):
+                cb.event_generate("<<ComboboxSelected>>")
+                return "break"
+            if e.keysym == "BackSpace":
+                state["buf"] = state["buf"][:-1]
+                return "break"
+            ch = e.char
+            if not ch or not ch.isprintable() or (e.state & 0x4):  # keine Steuerzeichen / Strg-Kombis
+                return None
+            now = time.monotonic()
+            state["buf"] = (state["buf"] if now - state["t"] < 1.5 else "") + ch
+            state["t"] = now
+            hit = self._best_match(list(cb["values"]), state["buf"])
+            if hit and hit != self.v[var].get():
+                self.v[var].set(hit)
+                cb.event_generate("<<ComboboxSelected>>")
+            return "break"
+
+        cb.bind("<KeyPress>", on_key)
+
+    def _bind_search_field(self, cb: ttk.Combobox, var: str) -> None:
+        """Länderfelder: Tippen filtert die Liste, Enter übernimmt den besten Treffer, ↓ öffnet die Liste."""
+        cb.bind("<KeyRelease>", lambda e: self._filter_country(e, var))
+        cb.bind("<Return>", lambda e: self._confirm_country(var))
+        cb.bind("<KP_Enter>", lambda e: self._confirm_country(var))
+        cb.bind("<<ComboboxSelected>>", lambda e: self._country_selected(var), add="+")
+        cb.bind("<FocusOut>", lambda e: self._validate_country(var))
 
     def _set_options(self, var: str, keys, labeler: Callable[[str], str]) -> None:
         keys = list(keys)
@@ -279,16 +331,12 @@ class App(tk.Tk):
         t_.columnconfigure(1, weight=1)
         nb.add(t_, text=t("tab.player"))
         self.country_cb = self._ocombo(t_, "country", self._countries(), country, editable=True)
-        self.country_cb.bind("<KeyRelease>", lambda e: self._filter_country(e, "country"))
         self.country_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
-        self.country_cb.bind("<FocusOut>", lambda e: self._validate_country("country"))
         self._row(t_, 0, t("lbl.country"), self.country_cb, t("hint.country"))
 
         self.second_cb = self._ocombo(t_, "second_country", [NO_SECOND] + self._countries(), country_or_none,
                                       editable=True)
-        self.second_cb.bind("<KeyRelease>", lambda e: self._filter_country(e, "second_country"))
         self.second_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
-        self.second_cb.bind("<FocusOut>", lambda e: self._validate_country("second_country"))
         self._row(t_, 2, t("lbl.second"), self.second_cb, t("hint.second"))
         self.parent_cb = self._ocombo(t_, "parent_mode", PARENT_MODES, lambda k: opt("parent_mode", k))
         self.parent_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
@@ -539,9 +587,10 @@ class App(tk.Tk):
         edit.grid(row=2, column=0, sticky="ew", pady=(6, 0))
         ttk.Label(edit, text=t("list.change"), style="Head.TLabel").grid(row=0, column=0, columnspan=6, sticky="w")
         widgets = (
-            (t("col.country"), self._ocombo(edit, "list_country", self._countries(), country, width=18), "country"),
+            (t("col.country"), self._ocombo(edit, "list_country", self._countries(), country, width=18,
+                                            editable=True), "country"),
             (t("col.country2"), self._ocombo(edit, "list_country2", [NO_SECOND] + self._countries(), country_or_none,
-                                             width=18), "country2"),
+                                             width=18, editable=True), "country2"),
             (t("lbl.personality"), self._ocombo(edit, "list_personality", [NO_PERS] + list(PERSONALITIES),
                                                 personality, width=18), "personality"),
         )
@@ -741,27 +790,57 @@ class App(tk.Tk):
 
     # ================================================================== Helfer
     def _filter_country(self, event, var: str) -> None:
-        if event.keysym in ("Up", "Down", "Return", "Escape", "Tab"):
+        if event.keysym in ("Up", "Down", "Return", "KP_Enter", "Escape", "Tab", "Shift_L", "Shift_R"):
             return
         k2l, _, keys = self.omap[var]
-        text = self.v[var].get().casefold()
-        with_none = var == "second_country"
-        hits = [k for k in keys if k != NO_SECOND and text in k2l[k].casefold()] or [k for k in keys if k != NO_SECOND]
+        text = self.v[var].get().strip().casefold()
+        with_none = NO_SECOND in keys
+        real = [k for k in keys if k != NO_SECOND]
+        starts = [k for k in real if k2l[k].casefold().startswith(text)]
+        contains = [k for k in real if text in k2l[k].casefold() and k not in starts]
+        hits = (starts + contains) or real
         self.ocb[var]["values"] = ([k2l[NO_SECOND]] if with_none else []) + [k2l[k] for k in hits]
-        if len(hits) == 1:
-            self._oset(var, hits[0])
+
+    def _confirm_country(self, var: str) -> str:
+        """Enter im Länderfeld: besten Treffer übernehmen."""
+        k2l, l2k, keys = self.omap[var]
+        cb = self.ocb[var]
+        text = self.v[var].get().strip()
+        if text in l2k:
+            key = l2k[text]
+        elif NO_SECOND in keys and text in ("", "-", "—"):
+            key = NO_SECOND
+        else:
+            hit = self._best_match([k2l[k] for k in keys if k != NO_SECOND], text)
+            key = l2k[hit] if hit else None
+        if key is not None:
+            self._oset(var, key)
+        else:
+            self._validate_country(var)
+        cb["values"] = [k2l[k] for k in keys]
+        cb.icursor("end")
+        cb.selection_range(0, "end")
+        self._country_selected(var)
+        return "break"
+
+    def _country_selected(self, var: str) -> None:
+        if var in ("country", "second_country"):
             self._update_mix()
 
     def _validate_country(self, var: str) -> None:
         k2l, l2k, keys = self.omap[var]
         text = self.v[var].get().strip()
-        allow_none = var == "second_country"
+        allow_none = NO_SECOND in keys
+        if not text and not allow_none and var != "country":
+            return  # leeres Feld der Spielerliste bleibt leer
         if text not in l2k:
-            match = [k for k in keys if k != NO_SECOND and k2l[k].casefold().startswith(text.casefold())] if text else []
-            if match:
-                self._oset(var, match[0])
+            hit = self._best_match([k2l[k] for k in keys if k != NO_SECOND], text)
+            if hit:
+                self.v[var].set(hit)
+            elif allow_none:
+                self._oset(var, NO_SECOND)
             else:
-                self._oset(var, NO_SECOND if allow_none else self.cfg.face.country)
+                self._oset(var, self.cfg.face.country if var == "country" else keys[0])
         self.ocb[var]["values"] = [k2l[k] for k in keys]
         self._update_mix()
 

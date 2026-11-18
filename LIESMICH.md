@@ -317,6 +317,11 @@ Länder, die das Programm nicht kennt, funktionieren trotzdem – dann entscheid
 
 ---
 
+## Bedienung per Tastatur
+
+- **Länderfelder**: tippen (z. B. `Port`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
+- **Alle anderen Auswahlfelder**: anklicken und tippen – springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
+
 ## Tipps für realistische Ergebnisse
 
 - Standard ist **„Transparent (FM-Cut-out)“** – Zuschnitt und Freistellung sind an echten FM-Facepack-Bildern
