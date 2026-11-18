@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import dataclass, field
 
 from .data import COUNTRIES, ETHNICITIES
@@ -397,3 +398,27 @@ def build_prompt(opts: FaceOptions, seed: int | None = None, age: int | None = N
         "persoenlichkeit": personality if personality in PERSONALITIES else "",
     }
     return FacePrompt(prompt=prompt, negative=NEGATIVE_PROMPT, seed=seed, meta=meta)
+
+
+# ---------------------------------------------------------------------------
+# Alter in einer bereits vorhandenen Beschreibung austauschen (für Bilder, zu denen nur die
+# Beschreibung aus generiert.csv bekannt ist – z. B. aus älteren Programmversionen)
+# ---------------------------------------------------------------------------
+_AGE_RE = re.compile(r"\b(\d{1,2})-year-old (teenage boy|young man|man|teenage girl|young woman|woman)\b")
+_ROLE_RE = re.compile(r"\b(youth academy football player|professional football player|youth footballer|"
+                      r"professional footballer)\b")
+_ALL_AGE_FEATURES = {f for a in range(14, 46) for g in ("male", "female") for f in _age_features(a, g)}
+_YOUNG_FACIAL_HAIR = ("clean-shaven, smooth youthful face", "faint teenage moustache fuzz", "very light patchy stubble")
+
+
+def reage_prompt(prompt: str, age: int, gender_key: str = "Männlich") -> str:
+    """Ersetzt Altersangabe und altersabhängige Merkmale in einer fertigen Beschreibung."""
+    gender = GENDERS.get(gender_key, "male")
+    text = _AGE_RE.sub(_age_phrase(age, gender), prompt, count=1)
+    role = "youth footballer" if age <= 21 else "professional footballer"
+    text = _ROLE_RE.sub(role, text, count=1)
+    parts = [p for p in text.split(", ") if p not in _ALL_AGE_FEATURES]
+    if age >= 20:  # Teenager-Flaum passt nicht mehr
+        parts = ["clean-shaven" if p in _YOUNG_FACIAL_HAIR else p for p in parts]
+    insert_at = next((i + 1 for i, p in enumerate(parts) if "footballer" in p or "football player" in p), 1)
+    return ", ".join(parts[:insert_at] + _age_features(age, gender) + parts[insert_at:])

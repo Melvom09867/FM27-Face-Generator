@@ -17,6 +17,7 @@ mit der Mod **FaceDrop** einfach auf den Spieler im Spiel.
 - **Speicherort frei wählbar**, inkl. automatischer Suche nach deinem FM-Ordner
 - **FM-Cut-out-Stil** wie bei echten Facepacks: Kopf füllt das Bild, Hintergrund per KI **transparent freigestellt**
 - Galerie mit „Neu würfeln“, „Löschen“, „Im Ordner zeigen“; Protokoll `generiert.csv`
+- **Bereits erstellte Bilder wieder laden** – z. B. um Jahre später ein Alterungs-Set zu erstellen
 - **8 Sprachen**: Deutsch, Englisch, Italienisch, Französisch, Spanisch, Portugiesisch, Japanisch, Koreanisch
 
 ---
@@ -174,6 +175,18 @@ Sie bestimmt den **Gesichtsausdruck** und fügt passende **Merkmale** hinzu, zum
 
 Herkunft, Haare, Kleidung, Persönlichkeit usw. bleiben gleich; ab Mitte 20 kommen reifere Gesichtszüge, ab Anfang 30
 feine Falten und später graue Schläfen dazu.
+
+**Alterungs-Set für ältere Bilder (nachträglich):** Oben rechts in der Galerie auf **„Bilder laden…“** klicken
+und bereits erstellte Bilder auswählen (Mehrfachauswahl mit Strg/Shift). Danach wie oben ein Bild auswählen und
+„Erstellen“ klicken. Die neuen Bilder landen im selben Ordner wie das geladene Bild.
+
+| Bild | Was passiert |
+|---|---|
+| Ab **Version 1.7** erstellt | Alle Infos stecken unsichtbar in der PNG-Datei – das Alterungs-Set trifft exakt dieselbe Person. FM und FaceDrop stört das nicht. |
+| Mit einer **älteren Version** erstellt | Die Infos (Seed, Beschreibung) kommen aus der `generiert.csv` im selben Ordner – nur das Alter wird ausgetauscht. |
+| **Fremdes Bild** ohne Infos | Nur mit **lokalem Stable Diffusion** möglich: Das Bild selbst dient als Vorlage, Beschreibung aus den aktuellen Einstellungen. |
+
+Tipp: Lass die `generiert.csv` im Bilderordner liegen – sie ist das „Gedächtnis“ für ältere Bilder.
 
 > **Ehrlicher Hinweis:** Mit der **Online-KI** sieht die Person in jedem Alter *ähnlich* aus, ist aber nicht
 > immer exakt dieselbe. Mit **lokalem Stable Diffusion** wird das Ausgangsbild als Vorlage verwendet

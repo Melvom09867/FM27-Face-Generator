@@ -22,7 +22,7 @@ from . import APP_NAME, __version__
 from . import settings as settings_mod
 from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWebUIBackend, check_sd_webui
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
-from .generator import GeneratedFace, Generator, Job, aging_jobs, parse_ages
+from .generator import GeneratedFace, Generator, Job, aging_jobs, load_face, parse_ages
 from .i18n import LANGUAGES, country, ethnicity, get_language, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
@@ -451,7 +451,10 @@ class App(tk.Tk):
         nb.add(tab, text=t("tab.gallery"))
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
-        ttk.Label(tab, text=t("gal.hint"), style="Hint.TLabel").grid(row=0, column=0, sticky="w")
+        head = ttk.Frame(tab)
+        head.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        ttk.Label(head, text=t("gal.hint"), style="Hint.TLabel").pack(side="left")
+        ttk.Button(head, text=t("btn.load_images"), command=self._load_images).pack(side="right")
         gal = ttk.Frame(tab, relief="sunken", borderwidth=1)
         gal.grid(row=1, column=0, sticky="nsew")
         gal.rowconfigure(0, weight=1)
@@ -999,11 +1002,16 @@ class App(tk.Tk):
         roots = ""
         if m.get("herkunft") and m["herkunft"] != m["land"]:
             roots = t("sel.roots", roots=" + ".join(country(x) for x in m["herkunft"].split(" and ")))
-        eth = " + ".join(ethnicity(k) for k in m.get("ethnie_key", "").split("+") if k in ETHNICITIES) or "—"
+        eth = (" + ".join(ethnicity(k) for k in m.get("ethnie_key", "").split("+") if k in ETHNICITIES)
+               or m.get("ethnie") or "—")
         text = (f"{face.path.name}\n{country(m['land'])}{roots}\n{eth}\n"
                 + t("sel.age", gender=opt("gender", m["geschlecht"]), age=m["alter"]) + f"\n{m['haare']}")
         if m.get("persoenlichkeit"):
             text += "\n" + t("sel.pers", p=pers_short(m["persoenlichkeit"]))
+        if face.source == "log":
+            text += "\n" + t("sel.from_log")
+        elif face.source == "unknown":
+            text += "\n" + t("sel.unknown")
         self.sel_info.config(text=text)
 
     def _current(self) -> GeneratedFace | None:
@@ -1031,8 +1039,35 @@ class App(tk.Tk):
             return
         gen = self._make_generator(out_dir=face.path.parent)
         if not getattr(gen.backend, "supports_img2img", False):
+            if face.source == "unknown":
+                messagebox.showinfo(APP_NAME, t("msg.aging_need_local"))
+                return
             self.after(300, lambda: self.status.config(text=t("status.aging_online")))
         self._run(gen, jobs, "aging")
+
+    def _load_images(self) -> None:
+        """Bereits erstellte Bilder in die Galerie holen (z. B. für ein späteres Alterungs-Set)."""
+        paths = filedialog.askopenfilenames(
+            title=t("dlg.load_images"), initialdir=self.v["output_dir"].get() or str(Path.home()),
+            filetypes=[(t("dlg.png"), "*.png"), (t("dlg.allfiles"), "*.*")])
+        if not paths:
+            return
+        self._read_from_ui()
+        loaded, failed = 0, []
+        for p in paths:
+            try:
+                self.faces.append(load_face(p, self.cfg.face))
+                loaded += 1
+            except Exception:  # noqa: BLE001 – kein Bild, beschädigt …
+                failed.append(Path(p).name)
+        if loaded:
+            self._rebuild_gallery()
+            self._select(len(self.faces) - 1)
+            self.canvas.yview_moveto(1.0)
+            self.right_nb.select(0)
+            self.status.config(text=t("status.loaded", n=loaded))
+        if failed:
+            messagebox.showwarning(APP_NAME, t("msg.load_failed", names="\n".join(failed[:20])))
 
     def _delete(self) -> None:
         face = self._current()

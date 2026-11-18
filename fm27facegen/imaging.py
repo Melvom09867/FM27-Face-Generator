@@ -225,7 +225,14 @@ def process(img: Image.Image, opts: ProcessOptions) -> Image.Image:
     return out
 
 
-def save_png(img: Image.Image, path: Path) -> Path:
+def save_png(img: Image.Image, path: Path, info: dict[str, str] | None = None) -> Path:
+    """Speichert als PNG; ``info`` wird als unsichtbarer Text-Block eingebettet (FM/FaceDrop ignorieren ihn)."""
+    from PIL.PngImagePlugin import PngInfo
     path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(path, format="PNG", optimize=True)
+    pnginfo = None
+    if info:
+        pnginfo = PngInfo()
+        for key, value in info.items():
+            pnginfo.add_itxt(key, value)
+    img.save(path, format="PNG", optimize=True, pnginfo=pnginfo)
     return path

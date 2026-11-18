@@ -17,6 +17,7 @@ the player in the game with the **FaceDrop** mod.
 - **Free choice of save location**, including automatic detection of your FM folder
 - **FM cut-out style** like real facepacks: the head fills the image, background **cut out to transparent** by AI
 - Gallery with "Re-roll", "Delete", "Show in folder"; log file `generiert.csv`
+- **Reload previously created images** – e.g. to create an ageing set years later
 - **8 languages**: German, English, Italian, French, Spanish, Portuguese, Japanese, Korean
 
 ---
@@ -171,6 +172,18 @@ It sets the **facial expression** and adds matching **features**, for example:
 
 Origin, hair, clothing, personality etc. stay the same; from the mid-20s more mature features are added,
 from the early 30s fine lines and later grey temples.
+
+**Ageing set for older images (later on):** click **"Load images…"** at the top right of the gallery and choose
+previously created images (multi-select with Ctrl/Shift). Then select an image as above and click "Create".
+The new images are saved in the same folder as the loaded image.
+
+| Image | What happens |
+|---|---|
+| Created with **version 1.7 or later** | All info is stored invisibly inside the PNG – the ageing set hits exactly the same person. FM and FaceDrop are not affected. |
+| Created with an **older version** | The info (seed, description) is taken from `generiert.csv` in the same folder – only the age is swapped. |
+| **Other image** without info | Only possible with **local Stable Diffusion**: the image itself is used as a template, the description comes from the current settings. |
+
+Tip: keep `generiert.csv` in the image folder – it's the "memory" for older images.
 
 > **Honest note:** with the **online AI** the person looks *similar* at every age but isn't always exactly
 > the same. With **local Stable Diffusion** the original image is used as a template (image-to-image) –
