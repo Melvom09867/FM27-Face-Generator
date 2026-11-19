@@ -111,7 +111,7 @@ Auch Länder, Haarfarben, Persönlichkeiten usw. werden übersetzt. Persönlichk
 
 ### Die Tabs „Neu erstellt“ und „Galerie“
 
-- **Neu erstellt**: die Bilder dieser Sitzung (und alles, was du über „Bilder laden…“ holst).
+- **Neu erstellt**: die Bilder dieser Sitzung (und alles, was du über „Bilder laden…“ holst) – neueste zuerst.
 - **Galerie**: **alle Bilder aus deinem Speicherort** (inkl. Unterordner je Land), neueste zuerst. Mit dem
   **Suchfeld** filterst du nach Dateinamen – z. B. `Söldner`, `Niederlande` oder `16J`. Von hier aus kannst du
   genauso ziehen, umbenennen, löschen und **direkt ein Alterungs-Set starten**. „Aktualisieren“ liest den Ordner neu ein.
@@ -360,7 +360,7 @@ Länder, die das Programm nicht kennt, funktionieren trotzdem – dann entscheid
 
 ## Bedienung per Tastatur
 
-- **Länderfelder**: tippen (z. B. `Port`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
+- **Länder- und Persönlichkeitsfelder**: tippen (z. B. `Port` oder `söld`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
 - **Alle anderen Auswahlfelder**: anklicken und tippen – springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
 - **Galerie**: **F2** = umbenennen, **Entf** = in den Papierkorb, **Strg/Shift + Klick** = mehrere auswählen.
 

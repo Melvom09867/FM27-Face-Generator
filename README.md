@@ -110,7 +110,7 @@ Delete the program folder. Optionally also delete `%APPDATA%\FM27FaceGenerator` 
 
 ### The "Newly created" and "Gallery" tabs
 
-- **Newly created**: the images from this session (and anything you add via "Load images…").
+- **Newly created**: the images from this session (and anything you add via "Load images…") – newest first.
 - **Gallery**: **all images in your save folder** (including per-country subfolders), newest first. Use the
   **search box** to filter by file name – e.g. `Mercenary`, `Netherlands` or `16J`. From here you can drag, rename,
   delete and **start an ageing set directly** as well. "Refresh" re-reads the folder.
@@ -358,7 +358,7 @@ Countries the program doesn't know still work – the AI then decides from the c
 
 ## Keyboard use
 
-- **Country fields**: type (e.g. `Port`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
+- **Country and personality fields**: type (e.g. `Port` or `merc`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
 - **All other drop-downs**: click and type – jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
 - **Gallery**: **F2** = rename, **Del** = Recycle Bin, **Ctrl/Shift + click** = select several.
 

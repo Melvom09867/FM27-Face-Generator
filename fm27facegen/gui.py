@@ -466,7 +466,7 @@ class App(tk.Tk):
         ttk.Separator(t_).grid(row=11, column=0, columnspan=2, sticky="ew", pady=(8, 4))
         ttk.Label(t_, text=t("tab.personality"), style="Head.TLabel").grid(row=12, column=0, columnspan=2,
                                                                           sticky="w", padx=8)
-        self.pers_cb = self._ocombo(t_, "personality", personality_names(), personality)
+        self.pers_cb = self._ocombo(t_, "personality", personality_names(), personality, editable=True)
         self.pers_cb.bind("<<ComboboxSelected>>", lambda e: self._update_pers_hint())
         self._row(t_, 13, t("lbl.personality"), self.pers_cb)
         self.pers_hint = ttk.Label(t_, text="", style="Hint.TLabel", wraplength=370, justify="left")
@@ -840,7 +840,7 @@ class App(tk.Tk):
             (t("col.country2"), self._ocombo(edit, "list_country2", [NO_SECOND] + self._countries(), country_or_none,
                                              width=18, editable=True), "country2"),
             (t("lbl.personality"), self._ocombo(edit, "list_personality", [NO_PERS] + list(PERSONALITIES),
-                                                personality, width=18), "personality"),
+                                                personality, width=18, editable=True), "personality"),
         )
         for col, (label, widget, which) in enumerate(widgets):
             ttk.Label(edit, text=label).grid(row=1 + col // 2, column=(col % 2) * 3, sticky="w", padx=(0, 4), pady=2)
@@ -1082,6 +1082,8 @@ class App(tk.Tk):
     def _country_selected(self, var: str) -> None:
         if var in ("country", "second_country"):
             self._update_mix()
+        elif var == "personality":
+            self._update_pers_hint()
 
     def _validate_country(self, var: str) -> None:
         k2l, l2k, keys = self.omap[var]
@@ -1098,7 +1100,7 @@ class App(tk.Tk):
             else:
                 self._oset(var, self.cfg.face.country if var == "country" else keys[0])
         self.ocb[var]["values"] = [k2l[k] for k in keys]
-        self._update_mix()
+        self._country_selected(var)
 
     def _update_mix(self) -> None:
         name = self._oget("country")
@@ -1215,7 +1217,11 @@ class App(tk.Tk):
         self.errors = 0
         self.done_ok = 0
         total = len(jobs)
-        self.progress.configure(maximum=total, value=0)
+        self.progress.configure(maximum=total * 100, value=0)
+        self.prog_done, self.prog_sub, self.prog_real = 0, 0.0, False
+        if hasattr(gen.backend, "progress_cb"):
+            gen.backend.progress_cb = lambda f: self.q.put(("progress", 0, total, None, f, kind, None))
+        self.after(200, self._tick_progress)
         self.status.config(text=t("status.generating", total=total))
         self._set_busy(True)
         self.run_pos = (1, total)
@@ -1264,12 +1270,18 @@ class App(tk.Tk):
                     if not self._busy():
                         self.status.config(text=payload[:140])
                     continue
+                if kind == "progress":
+                    self.prog_real = True  # echter Fortschritt von Forge: 5 % … 95 % des aktuellen Bildes
+                    self.prog_sub = max(self.prog_sub, 5 + 90 * float(payload))
+                    self._show_progress()
+                    continue
                 if kind == "info":
                     pos, tot = getattr(self, "run_pos", (1, total))
                     self.status.config(text=t("status.info", pos=pos, total=tot, msg=payload)[:140])
                     continue
                 if kind in ("done", "error"):
                     self.run_pos = (min(i + 1, total), total)
+                    self.prog_done, self.prog_sub, self.prog_real = i, 0.0, False
                 if kind == "done":
                     self.done_ok += 1
                     if replace_idx is not None:
@@ -1281,11 +1293,11 @@ class App(tk.Tk):
                         self.tree.set(job.tag, "status", "✓ " + payload.path.name)
                         self.tree.item(job.tag, tags=("ok",))
                         self.players[job.tag].image = payload.path
-                    self.progress.configure(value=i)
+                    self._show_progress()
                     self.status.config(text=t("status.done_one", i=i, total=total, name=payload.path.name))
                 elif kind == "error":
                     self.errors += 1
-                    self.progress.configure(value=i)
+                    self._show_progress()
                     if job.tag and self.tree.exists(job.tag):
                         self.tree.set(job.tag, "status", t("list.error", e=payload)[:120])
                         self.tree.item(job.tag, tags=("err",))
@@ -1295,6 +1307,8 @@ class App(tk.Tk):
                         messagebox.showerror(APP_NAME, t("msg.error", i=i, e=payload))
                 elif kind == "finished":
                     self._set_busy(False)
+                    self.prog_done, self.prog_sub, self.prog_real = total, 0.0, False
+                    self._show_progress()
                     where = self.generator.out_dir if self.generator else self.cfg.output_dir
                     self.status.config(text=t("status.finished", n=self.done_ok, where=where)
                                        + (t("status.finished_err", n=self.errors) if self.errors else ""))
@@ -1307,17 +1321,34 @@ class App(tk.Tk):
             pass
         self.after(150, self._poll)
 
+    # ---- Ladebalken
+    def _show_progress(self) -> None:
+        self.progress.configure(value=self.prog_done * 100 + min(self.prog_sub, 99))
+
+    def _tick_progress(self) -> None:
+        """Läuft während der Erzeugung: ohne echte Rückmeldung (Pollinations) wandert der Balken gleichmäßig
+        weiter und wird zum Ende hin langsamer – er bleibt nie stehen, springt aber auch nicht übers Ziel."""
+        if not self._busy():
+            return
+        if not self.prog_real:
+            self.prog_sub += (95 - self.prog_sub) * 0.012
+        self._show_progress()
+        self.after(200, self._tick_progress)
+
     # ================================================================== Galerie
     def _add_face(self, face: GeneratedFace) -> None:
         """Neu erzeugte Bilder landen immer im Tab 'Neu erstellt'."""
         st = self.gal["new"]
-        st.faces.append(face)
-        for old in st.faces[:-KEEP_RAW]:
+        st.faces.insert(0, face)  # neueste zuerst
+        for old in st.faces[KEEP_RAW:]:
             old.raw = None
+        st.marked = set()
         if self.gmode == "new":
-            self._append_thumbs(len(st.faces) - 1)
-            self._select(len(st.faces) - 1)
-            self.canvas.yview_moveto(1.0)
+            self._rebuild_gallery()
+            self._select(0)
+            self.canvas.yview_moveto(0.0)
+        else:
+            st.selected = 0
 
     def _replace_face(self, target: tuple[str, int], face: GeneratedFace) -> None:
         mode, idx = target
@@ -1541,18 +1572,19 @@ class App(tk.Tk):
         self._read_from_ui()
         self.right_nb.select(0)
         self._show_mode("new")
-        loaded, failed = 0, []
+        loaded, failed = [], []
         for p in paths:
             try:
-                self.faces.append(load_face(p, self.cfg.face))
-                loaded += 1
+                loaded.append(load_face(p, self.cfg.face))
             except Exception:  # noqa: BLE001 – kein Bild, beschädigt …
                 failed.append(Path(p).name)
         if loaded:
+            self.faces[:0] = loaded  # geladene Bilder oben einreihen (neueste zuerst)
+            self.marked = set()
             self._rebuild_gallery()
-            self._select(len(self.faces) - 1)
-            self.canvas.yview_moveto(1.0)
-            self.status.config(text=t("status.loaded", n=loaded))
+            self._select(0)
+            self.canvas.yview_moveto(0.0)
+            self.status.config(text=t("status.loaded", n=len(loaded)))
         if failed:
             messagebox.showwarning(APP_NAME, t("msg.load_failed", names="\n".join(failed[:20])))
 

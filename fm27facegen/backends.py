@@ -21,7 +21,7 @@ from PIL import Image
 from .i18n import t
 from .prompts import FacePrompt
 
-USER_AGENT = "FM27-FaceGenerator/1.7.2"
+USER_AGENT = "FM27-FaceGenerator/1.7.3"
 
 
 class BackendError(RuntimeError):
@@ -184,6 +184,7 @@ class StableDiffusionWebUIBackend:
         self.s = settings
         self.http = session or requests.Session()
         self._model: str | None = None  # aktives Modell in der WebUI (einmal abgefragt)
+        self.progress_cb: Callable[[float], None] | None = None  # echter Fortschritt 0..1 (für den Ladebalken)
 
     def _active_model(self) -> str:
         if self._model is None:
@@ -224,13 +225,19 @@ class StableDiffusionWebUIBackend:
         if is_fast_model(self._active_model()) and self.s.sd_steps > 12:
             payload.update(FAST_PRESET)
         payload.update(extra or {})
+        stop = threading.Event()
+        if self.progress_cb:
+            threading.Thread(target=self._poll_progress, args=(stop,), daemon=True).start()
         try:
-            r = self.http.post(url, json=payload, timeout=self.s.timeout)
-        except requests.RequestException as exc:
-            raise BackendError(t("be.sd_unreachable", url=self.s.sd_url)) from exc
-        if r.status_code == 422 and "scheduler" in r.text:
-            payload.pop("scheduler", None)
-            r = self.http.post(url, json=payload, timeout=self.s.timeout)
+            try:
+                r = self.http.post(url, json=payload, timeout=self.s.timeout)
+            except requests.RequestException as exc:
+                raise BackendError(t("be.sd_unreachable", url=self.s.sd_url)) from exc
+            if r.status_code == 422 and "scheduler" in r.text:
+                payload.pop("scheduler", None)
+                r = self.http.post(url, json=payload, timeout=self.s.timeout)
+        finally:
+            stop.set()
         if r.status_code != 200:
             raise BackendError(f"Stable Diffusion WebUI: HTTP {r.status_code}: {r.text[:200]}")
         try:
@@ -240,6 +247,20 @@ class StableDiffusionWebUIBackend:
         if "," in b64[:100]:
             b64 = b64.split(",", 1)[1]
         return _open_image(base64.b64decode(b64), "Stable Diffusion WebUI")
+
+
+    def _poll_progress(self, stop: threading.Event) -> None:
+        """Fragt während der Erzeugung den echten Fortschritt der WebUI ab (/sdapi/v1/progress)."""
+        url = self.s.sd_url.rstrip("/") + "/sdapi/v1/progress?skip_current_image=true"
+        while not stop.wait(0.5):
+            try:
+                r = requests.get(url, timeout=3)  # eigene Verbindung, die Haupt-Anfrage läuft parallel
+                if r.status_code == 200:
+                    value = float(r.json().get("progress", 0) or 0)
+                    if self.progress_cb and 0 < value <= 1:
+                        self.progress_cb(value)
+            except Exception:  # noqa: BLE001 – Fortschritt ist nur Anzeige
+                pass
 
 
 def check_sd_webui(settings: BackendSettings, session: requests.Session | None = None) -> dict:
