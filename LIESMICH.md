@@ -153,7 +153,7 @@ So bekommt jeder deiner Jugendspieler automatisch ein passendes Gesicht – mit 
    Doppelklick auf einen Spieler öffnet sein Bild.
 
 Alter, Land, 2. Nationalität und Persönlichkeit kommen aus der Liste; Geschlecht, Aussehen und Hintergrund aus
-den Einstellungen links. Spieler ohne Persönlichkeit in der Liste bekommen die Einstellung aus dem Tab „Persönlichkeit“.
+den Einstellungen links. Spieler ohne Persönlichkeit in der Liste bekommen die Einstellung aus dem Abschnitt „Persönlichkeit“ im Tab **Spieler**.
 Unter der Liste kannst du Land, 2. Land und Persönlichkeit für markierte Spieler nachträglich ändern.
 Eine eigene CSV-Datei (z. B. aus Excel) geht auch – Kopfzeile z. B. `Name;Nation;Alter;2. Nation;Persönlichkeit;UID`.
 
@@ -163,7 +163,7 @@ ebenso die üblichen FIFA-Kürzel wie `GER`, `FRA`, `JPN`.
 
 ### Persönlichkeit
 
-Im Tab **Persönlichkeit** wählst du eine der 40 FM-Persönlichkeiten – mit den offiziellen deutschen Namen
+Im Tab **Spieler** unter der Überschrift **Persönlichkeit** wählst du eine der 40 FM-Persönlichkeiten – mit den offiziellen deutschen Namen
 (Quelle: fm.zweierkette.de) und dem englischen Namen in Klammern. Beim Import werden beide Sprachen erkannt,
 auch ältere Namen wie „Ausgeglichen“ (heute „Ausgewogen“) oder „Unbeständig“ (heute „Opportunist“).
 Sie bestimmt den **Gesichtsausdruck** und fügt passende **Merkmale** hinzu, zum Beispiel:

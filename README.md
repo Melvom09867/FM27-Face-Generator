@@ -152,7 +152,7 @@ This gives every youth player a matching face automatically – with their name 
    Double-click a player to open their image.
 
 Age, country, 2nd nationality and personality come from the list; gender, look and background from the
-settings on the left. Players without a personality in the list get the setting from the "Personality" tab.
+settings on the left. Players without a personality in the list get the setting from the "Personality" section of the **Player** tab.
 Below the list you can change country, 2nd country and personality for selected players afterwards.
 Your own CSV file (e.g. from Excel) works too – header e.g. `Name;Nation;Age;2nd Nation;Personality;UID`.
 
@@ -162,7 +162,7 @@ as are the usual FIFA codes such as `GER`, `FRA`, `JPN`.
 
 ### Personality
 
-In the **Personality** tab you choose one of the 40 FM personalities.
+In the **Player** tab under the heading **Personality** you choose one of the 40 FM personalities.
 It sets the **facial expression** and adds matching **features**, for example:
 
 | Personality | Typical features |

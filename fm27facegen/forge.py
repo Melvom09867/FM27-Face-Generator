@@ -90,16 +90,28 @@ class ForgeManager:
         return self.proc
 
     def wait_ready(self, sd_url: str, timeout: float = 900, interval: float = 3,
-                   on_tick: Callable[[int], None] | None = None) -> str:
-        """Wartet, bis die API antwortet. Ergebnis: 'ready', 'no_api', 'exited', 'timeout' oder 'cancelled'."""
+                   on_tick: Callable[[int], None] | None = None, no_api_grace: float = 120) -> str:
+        """Wartet, bis die API antwortet. Ergebnis: 'ready', 'no_api', 'exited', 'timeout' oder 'cancelled'.
+
+        Forge öffnet beim Hochfahren zuerst die Weboberfläche und schaltet die Schnittstelle (API) erst kurz
+        danach ein. 'API fehlt' gilt deshalb erst, wenn sie ``no_api_grace`` Sekunden lang ausbleibt.
+        """
         t0 = time.monotonic()
+        no_api_since: float | None = None
         while time.monotonic() - t0 < timeout:
             if self._cancel.wait(interval):
                 return "cancelled"
             state = api_state(sd_url)
-            if state in ("ready", "no_api"):
-                self.state = "ready" if state == "ready" else "failed"
-                return state
+            if state == "ready":
+                self.state = "ready"
+                return "ready"
+            if state == "no_api":
+                no_api_since = no_api_since or time.monotonic()
+                if time.monotonic() - no_api_since >= no_api_grace:
+                    self.state = "failed"
+                    return "no_api"
+            else:
+                no_api_since = None
             if self.proc is not None and self.proc.poll() is not None:
                 self.state = "failed"
                 return "exited"

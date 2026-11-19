@@ -389,7 +389,6 @@ class App(tk.Tk):
         nb.pack(fill="both", expand=True)
         self._build_tab_player(nb)
         self._build_tab_look(nb)
-        self._build_tab_personality(nb)
         self._build_tab_output(nb)
         self._build_tab_ai(nb)
 
@@ -412,15 +411,15 @@ class App(tk.Tk):
         nb.add(t_, text=t("tab.player"))
         self.country_cb = self._ocombo(t_, "country", self._countries(), country, editable=True)
         self.country_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
-        self._row(t_, 0, t("lbl.country"), self.country_cb, t("hint.country"))
+        self._row(t_, 0, t("lbl.country"), self.country_cb)
 
         self.second_cb = self._ocombo(t_, "second_country", [NO_SECOND] + self._countries(), country_or_none,
                                       editable=True)
         self.second_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
-        self._row(t_, 2, t("lbl.second"), self.second_cb, t("hint.second"))
+        self._row(t_, 2, t("lbl.second"), self.second_cb)
         self.parent_cb = self._ocombo(t_, "parent_mode", PARENT_MODES, lambda k: opt("parent_mode", k))
         self.parent_cb.bind("<<ComboboxSelected>>", lambda e: self._update_mix())
-        self._row(t_, 4, t("lbl.parents"), self.parent_cb, t("hint.parents"))
+        self._row(t_, 4, t("lbl.parents"), self.parent_cb)
 
         self.eth_cb = self._ocombo(t_, "ethnicity", [AUTO_ETH] + list(ETHNICITIES),
                                    lambda k: opt("_common", k) if k == AUTO_ETH else ethnicity(k))
@@ -441,6 +440,21 @@ class App(tk.Tk):
         ttk.Spinbox(af, from_=14, to=45, textvariable=v["age_max"], width=5).pack(side="left")
         ttk.Label(af, text=t("word.years")).pack(side="left")
         self._row(t_, 9, t("lbl.age"), af, t("hint.age"))
+
+        # ---- Persönlichkeit (direkt im Spieler-Tab, spart das Wechseln)
+        ttk.Separator(t_).grid(row=11, column=0, columnspan=2, sticky="ew", pady=(8, 4))
+        ttk.Label(t_, text=t("tab.personality"), style="Head.TLabel").grid(row=12, column=0, columnspan=2,
+                                                                          sticky="w", padx=8)
+        self.pers_cb = self._ocombo(t_, "personality", personality_names(), personality)
+        self.pers_cb.bind("<<ComboboxSelected>>", lambda e: self._update_pers_hint())
+        self._row(t_, 13, t("lbl.personality"), self.pers_cb)
+        self.pers_hint = ttk.Label(t_, text="", style="Hint.TLabel", wraplength=370, justify="left")
+        self.pers_hint.grid(row=14, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 2))
+        pf = ttk.Frame(t_)
+        self._ocombo(pf, "personality_strength", STRENGTHS, lambda k: opt("strength", k), width=9).pack(side="left")
+        ttk.Label(pf, text="   " + t("lbl.tattoo")).pack(side="left")
+        ttk.Spinbox(pf, from_=14, to=40, textvariable=self.v["tattoo_min_age"], width=4).pack(side="left", padx=4)
+        self._row(t_, 15, t("lbl.strength"), pf, t("hint.pers_short"))
 
     # ------------------------------------------------------------------ Tab: Aussehen
     def _build_tab_look(self, nb) -> None:
@@ -515,27 +529,6 @@ class App(tk.Tk):
             del self.cfg.club_presets[name]
             settings_mod.save(self.cfg)
         self._refresh_club_presets()
-
-    # ------------------------------------------------------------------ Tab: Persönlichkeit
-    def _build_tab_personality(self, nb) -> None:
-        v = self.v
-        t_ = ttk.Frame(nb, padding=6)
-        t_.columnconfigure(1, weight=1)
-        nb.add(t_, text=t("tab.personality"))
-        ttk.Label(t_, text=t("pers.intro"), style="Hint.TLabel", wraplength=370, justify="left").grid(
-            row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
-        self.pers_cb = self._ocombo(t_, "personality", personality_names(), personality)
-        self.pers_cb.bind("<<ComboboxSelected>>", lambda e: self._update_pers_hint())
-        self._row(t_, 1, t("lbl.personality"), self.pers_cb)
-        self.pers_hint = ttk.Label(t_, text="", style="Hint.TLabel", wraplength=370, justify="left")
-        self.pers_hint.grid(row=2, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 6))
-        self._row(t_, 3, t("lbl.strength"),
-                  self._ocombo(t_, "personality_strength", STRENGTHS, lambda k: opt("strength", k), width=12),
-                  t("hint.strength"))
-        self._row(t_, 5, t("lbl.tattoo"), ttk.Spinbox(t_, from_=14, to=40, textvariable=v["tattoo_min_age"], width=5),
-                  t("hint.tattoo"))
-        ttk.Label(t_, text=t("pers.list_note"), style="Hint.TLabel", wraplength=370, justify="left").grid(
-            row=7, column=0, columnspan=2, sticky="w", padx=8, pady=(12, 0))
 
     # ------------------------------------------------------------------ Tab: Ausgabe
     def _build_tab_output(self, nb) -> None:
