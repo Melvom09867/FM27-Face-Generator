@@ -108,6 +108,18 @@ Delete the program folder. Optionally also delete `%APPDATA%\FM27FaceGenerator` 
 5. In the game, drag the matching PNG onto the player with FaceDrop – **straight from the gallery**
    (drag the thumbnail or the large preview into the FM window) or from the folder as before.
 
+### The "Newly created" and "Gallery" tabs
+
+- **Newly created**: the images from this session (and anything you add via "Load images…").
+- **Gallery**: **all images in your save folder** (including per-country subfolders), newest first. Use the
+  **search box** to filter by file name – e.g. `Mercenary`, `Netherlands` or `16J`. From here you can drag, rename,
+  delete and **start an ageing set directly** as well. "Refresh" re-reads the folder.
+
+**File names**: the default is now `Country_AgeJ_Personality_ID`, e.g. `Netherlands_16J_Very-Ambitious_2106529392.png`
+(without personality: `Netherlands_16J_2106529392.png`; with the German interface the German names are used).
+If you create e.g. 4 images but only need one, you can recognise the others later by their name.
+Adjustable in the **Output** tab → "File name".
+
 ### Gallery: drag, rename, delete
 
 - **Drag**: hold the left mouse button and drag an image from the gallery into another program

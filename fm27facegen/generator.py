@@ -22,7 +22,8 @@ from .imaging import ProcessOptions, process, save_png
 from .prompts import (GENDERS, NEGATIVE_PROMPT, TRANSPARENT_BG, FaceOptions, FacePrompt, build_prompt,
                       reage_prompt)
 
-DEFAULT_PATTERN = "{land}_{alter}J_{seed}"
+DEFAULT_PATTERN = "{land}_{alter}J_{persoenlichkeit}_{seed}"
+OLD_DEFAULT_PATTERNS = ("{land}_{alter}J_{seed}",)  # alte Standardmuster -> werden automatisch umgestellt
 AGING_STRENGTH = 0.5  # img2img-Stärke beim Alterungs-Set (lokal): kleiner = ähnlicher, größer = mehr Alterung
 
 
@@ -53,7 +54,10 @@ class GeneratedFace:
 
 
 def _slug(text: str) -> str:
-    text = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode()
+    text = str(text)
+    for a, b in (("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        text = text.replace(a, b)
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     text = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-")
     return text or "x"
 
@@ -66,7 +70,7 @@ def safe_filename(name: str) -> str:
 
 def make_filename(pattern: str, meta: dict, index: int, extra: dict | None = None) -> str:
     values = {
-        "land": _slug(meta.get("land", "")),
+        "land": _slug(_country_for_file(meta.get("land", ""))),
         "herkunft": _slug(meta.get("herkunft", "")),
         "ethnie": _slug(meta.get("ethnie_key", "")),
         "alter": meta.get("alter", ""),
@@ -75,13 +79,33 @@ def make_filename(pattern: str, meta: dict, index: int, extra: dict | None = Non
         "nr": f"{index:03d}",
         "datum": dt.date.today().strftime("%Y%m%d"),
         "name": "", "uid": "",
+        "persoenlichkeit": _personality_slug(meta.get("persoenlichkeit", "")),
     }
     values.update(extra or {})
     try:
         name = (pattern or DEFAULT_PATTERN).format(**values)
     except (KeyError, IndexError, ValueError):
         name = DEFAULT_PATTERN.format(**values)
+    name = re.sub(r"_{2,}", "_", name).strip("_-")  # leere Platzhalter (z. B. keine Persönlichkeit) entfernen
     return safe_filename(name) + ".png"
+
+
+def _country_for_file(key: str) -> str:
+    """Land für den Dateinamen: deutsch bei deutscher Oberfläche, sonst englisch."""
+    from .data import COUNTRIES
+    from .i18n import get_language
+    if get_language() != "de" and key in COUNTRIES:
+        return COUNTRIES[key][0]
+    return key
+
+
+def _personality_slug(key: str) -> str:
+    """Persönlichkeit für den Dateinamen: deutsch bei deutscher Oberfläche, sonst der englische FM-Name."""
+    if not key:
+        return ""
+    from .i18n import get_language
+    de, _, en = key.partition(" (")
+    return _slug(de if get_language() == "de" or not en else en.rstrip(")"))
 
 
 def _unique(path: Path) -> Path:
@@ -276,16 +300,45 @@ def _options_from_dict(data: dict) -> FaceOptions:
     return FaceOptions(**{k: v for k, v in (data or {}).items() if k in names})
 
 
+_log_cache: dict[tuple[str, float], dict[str, dict]] = {}
+
+
 def _find_in_log(path: Path) -> dict | None:
+    """Eintrag zu einer Datei in generiert.csv (pro Datei-Stand nur einmal eingelesen – schnell auch bei vielen Bildern)."""
     log = path.parent / "generiert.csv"
-    if not log.exists():
-        return None
     try:
-        with log.open(encoding="utf-8-sig", newline="") as f:
-            rows = [r for r in csv.DictReader(f, delimiter=";") if r.get("datei") == path.name]
-    except (OSError, csv.Error):
+        key = (str(log), log.stat().st_mtime)
+    except OSError:
         return None
-    return rows[-1] if rows else None  # bei überschriebenen Dateien gilt der neueste Eintrag
+    if key not in _log_cache:
+        rows: dict[str, dict] = {}
+        try:
+            with log.open(encoding="utf-8-sig", newline="") as f:
+                for r in csv.DictReader(f, delimiter=";"):
+                    if r.get("datei"):
+                        rows[r["datei"]] = r  # bei überschriebenen Dateien gilt der neueste Eintrag
+        except (OSError, csv.Error):
+            return None
+        _log_cache.clear()  # nur den zuletzt gelesenen Stand behalten
+        _log_cache[key] = rows
+    return _log_cache[key].get(path.name)
+
+
+def list_folder_images(base: str | Path, limit: int = 2000) -> list[Path]:
+    """PNG-Bilder im Speicherort und in dessen direkten Unterordnern (z. B. 'je Land'), neueste zuerst."""
+    base = Path(base)
+    if not base.is_dir():
+        return []
+    files = [p for p in base.glob("*.png")] + [p for p in base.glob("*/*.png")]
+    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return files[:limit]
+
+
+def search_key(text: str) -> str:
+    """Vergleichsform für die Suche: 'Söldner' findet auch 'Soeldner', 'sehr ehrgeizig' auch 'Sehr-ehrgeizig'."""
+    if not str(text).strip():
+        return ""
+    return _slug(text).replace("-", "").casefold()
 
 
 def load_face(path: str | Path, fallback: FaceOptions | None = None) -> GeneratedFace:

@@ -74,9 +74,29 @@ def test_watermark_strip_is_cut_off():
 
 
 def test_filename_pattern():
-    meta = {"land": "Österreich", "ethnie_key": "EUR_W", "alter": 16, "seed": 7, "geschlecht": "Männlich"}
-    assert make_filename("{land}_{alter}J_{seed}", meta, 1) == "Osterreich_16J_7.png"
-    assert make_filename("{kaputt}", meta, 3) == "Osterreich_16J_7.png"
+    from fm27facegen import i18n
+    meta = {"land": "Österreich", "ethnie_key": "EUR_W", "alter": 16, "seed": 7, "geschlecht": "Männlich",
+            "persoenlichkeit": "Sehr ehrgeizig (Very Ambitious)"}
+    assert make_filename("", meta, 1) == "Oesterreich_16J_Sehr-ehrgeizig_7.png"          # Standard: Land_Alter_Persönlichkeit_ID
+    assert make_filename("{land}_{alter}J_{seed}", meta, 1) == "Oesterreich_16J_7.png"
+    assert make_filename("{kaputt}", meta, 3) == "Oesterreich_16J_Sehr-ehrgeizig_7.png"
+    meta["persoenlichkeit"] = ""
+    assert make_filename("", meta, 1) == "Oesterreich_16J_7.png"                           # ohne Persönlichkeit kein "__"
+    try:
+        i18n.set_language("en")
+        meta["persoenlichkeit"] = "Söldner (Mercenary)"
+        assert make_filename("", meta, 1) == "Austria_16J_Mercenary_7.png"
+    finally:
+        i18n.set_language("de")
+
+
+def test_old_default_pattern_is_migrated(tmp_path):
+    from fm27facegen import settings
+    f = tmp_path / "e.json"
+    f.write_text(json.dumps({"version": 3, "pattern": "{land}_{alter}J_{seed}"}), encoding="utf-8")
+    assert settings.load(f).pattern == "{land}_{alter}J_{persoenlichkeit}_{seed}"
+    f.write_text(json.dumps({"version": 3, "pattern": "{nr}_{land}"}), encoding="utf-8")
+    assert settings.load(f).pattern == "{nr}_{land}"                                  # eigenes Muster bleibt
 
 
 class _SD(BaseHTTPRequestHandler):

@@ -109,6 +109,17 @@ Auch Länder, Haarfarben, Persönlichkeiten usw. werden übersetzt. Persönlichk
 5. Im Spiel das passende PNG per FaceDrop auf den Spieler ziehen – **direkt aus der Galerie** (Vorschaubild
    oder großes Bild mit der Maus ins FM-Fenster ziehen) oder wie bisher aus dem Ordner.
 
+### Die Tabs „Neu erstellt“ und „Galerie“
+
+- **Neu erstellt**: die Bilder dieser Sitzung (und alles, was du über „Bilder laden…“ holst).
+- **Galerie**: **alle Bilder aus deinem Speicherort** (inkl. Unterordner je Land), neueste zuerst. Mit dem
+  **Suchfeld** filterst du nach Dateinamen – z. B. `Söldner`, `Niederlande` oder `16J`. Von hier aus kannst du
+  genauso ziehen, umbenennen, löschen und **direkt ein Alterungs-Set starten**. „Aktualisieren“ liest den Ordner neu ein.
+
+**Dateinamen**: Standard ist jetzt `Land_AlterJ_Persönlichkeit_ID`, z. B. `Niederlande_16J_Sehr-ehrgeizig_2106529392.png`
+(ohne Persönlichkeit: `Niederlande_16J_2106529392.png`). Lässt du z. B. 4 Bilder erstellen und brauchst nur eins,
+erkennst du die übrigen später am Namen wieder. Anpassbar im Tab **Ausgabe** → „Dateiname“.
+
 ### Galerie: ziehen, umbenennen, löschen
 
 - **Ziehen**: Bild mit gedrückter linker Maustaste aus der Galerie in ein anderes Programm ziehen

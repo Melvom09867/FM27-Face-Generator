@@ -78,7 +78,7 @@ class AppSettings:
     skip_version: str = ""         # genau diese Version nicht mehr melden (neuere schon)  # Vereins-Vorlagen: Name -> Kleidung/Farben/Muster
     language: str = "de"
     ask_language: bool = True  # Sprachauswahl beim Start zeigen
-    version: int = 3  # Version der Einstellungen (für automatische Umstellung nach Updates)
+    version: int = 4  # Version der Einstellungen (für automatische Umstellung nach Updates)
 
 
 def _fill(cls, data: dict):
@@ -113,13 +113,18 @@ def load(path: Path | None = None) -> AppSettings:
                 setattr(s, k, type(getattr(s, k))(raw[k]))
             except (TypeError, ValueError):
                 pass
+    if int(raw.get("version", 1) or 1) < 4:
+        # v1.7.2: Standard-Dateiname um die Persönlichkeit erweitert (eigene Muster bleiben unverändert)
+        from .generator import OLD_DEFAULT_PATTERNS
+        if s.pattern in OLD_DEFAULT_PATTERNS:
+            s.pattern = DEFAULT_PATTERN
     if int(raw.get("version", 1) or 1) < 3:
         # v1.4: Zuschnitt und Hintergrund auf FM-Cut-out-Stil umstellen
         defaults_face, defaults_proc = FaceOptions(), ProcessOptions()
         s.process.zoom, s.process.face_y = defaults_proc.zoom, defaults_proc.face_y
         s.face.background = defaults_face.background
         s.face.clothing = defaults_face.clothing
-    s.version = 3
+    s.version = 4
     return s
 
 

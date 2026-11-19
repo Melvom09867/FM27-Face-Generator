@@ -68,3 +68,22 @@ def test_shirt_patterns():
         q = build_prompt(FaceOptions(shirt_color="Rot", shirt_pattern="Querstreifen"), seed=s).prompt
         assert "a red and red" not in q and "horizontally hooped" in q
     assert set(SHIRT_PATTERNS) >= {"Einfarbig", "Längsstreifen", "Querstreifen"}
+
+
+def test_folder_listing_and_search(tmp_path):
+    import os
+    import time
+
+    from fm27facegen.generator import list_folder_images, search_key
+    (tmp_path / "Brasilien").mkdir()
+    old = tmp_path / "Niederlande_16J_Soeldner_1.png"
+    new = tmp_path / "Brasilien" / "Brasilien_15J_Sehr-ehrgeizig_2.png"
+    for p in (old, new):
+        fake_portrait(32).save(p)
+    (tmp_path / "generiert.csv").write_text("x")
+    os.utime(old, (time.time() - 100, time.time() - 100))
+    assert list_folder_images(tmp_path) == [new, old]              # neueste zuerst, inkl. Unterordner
+    assert list_folder_images(tmp_path / "gibtsnicht") == []
+    assert search_key("Söldner") in search_key(old.name)          # Umlaut-Suche
+    assert search_key("sehr ehrgeizig") in search_key(new.name)
+    assert search_key("") == "" and search_key("  ") == ""

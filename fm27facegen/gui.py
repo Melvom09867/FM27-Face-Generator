@@ -25,8 +25,8 @@ from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWe
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
 from .forge import ForgeManager, api_enabled, find_launcher
 from .update import check_latest, should_notify
-from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, load_face, parse_ages, rename_face,
-                        trash_files)
+from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, list_folder_images, load_face,
+                        parse_ages, rename_face, search_key, trash_files)
 from .i18n import LANGUAGES, country, ethnicity, get_language, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
@@ -34,6 +34,7 @@ from .prompts import (AUTO, BACKGROUNDS, CLOTHING, EXPRESSIONS, FACIAL_HAIR, GEN
                       HAIR_STYLES_FEMALE, HAIR_STYLES_MALE, NO_SECOND, PARENT_MODES, SHIRT_COLORS, SHIRT_PATTERNS)
 from tkinter import simpledialog
 
+FOLDER_MAX = 2000  # so viele Bilder zeigt die Ordner-Galerie höchstens (die neuesten)
 THUMB = 125
 PREVIEW = 250
 KEEP_RAW = 40  # so viele Original-KI-Bilder bleiben für Alterungs-Sets im Speicher
@@ -89,6 +90,16 @@ def pers_short(key: str | None) -> str:
         return ""
     label = personality(key)
     return label.split(" (")[0] if get_language() == "de" else label
+
+
+class GalleryState:
+    """Inhalt eines Galerie-Tabs ('new' = in dieser Sitzung erstellt, 'folder' = alle Bilder im Speicherort)."""
+
+    def __init__(self) -> None:
+        self.faces: list[GeneratedFace] = []      # angezeigte (ggf. gefilterte) Bilder
+        self.all_faces: list[GeneratedFace] = []  # Ordner-Galerie: alle geladenen Bilder vor dem Suchfilter
+        self.selected: int | None = None
+        self.marked: set[int] = set()
 
 
 # ====================================================================== Sprachdialog
@@ -189,6 +200,14 @@ class UpdateDialog(tk.Toplevel):
 
 # ====================================================================== Hauptfenster
 class App(tk.Tk):
+    # Galerie-Daten des gerade sichtbaren Tabs ('Neu erstellt' oder 'Galerie')
+    faces = property(lambda self: self.gal[self.gmode].faces,
+                     lambda self, value: setattr(self.gal[self.gmode], "faces", value))
+    selected = property(lambda self: self.gal[self.gmode].selected,
+                        lambda self, value: setattr(self.gal[self.gmode], "selected", value))
+    marked = property(lambda self: self.gal[self.gmode].marked,
+                      lambda self, value: setattr(self.gal[self.gmode], "marked", value))
+
     def __init__(self) -> None:
         super().__init__()
         self.title(f"{APP_NAME} {__version__}")
@@ -211,11 +230,13 @@ class App(tk.Tk):
         self.q: queue.Queue = queue.Queue()
         self.worker: threading.Thread | None = None
         self.generator: Generator | None = None
-        self.faces: list[GeneratedFace] = []
+        self.gal = {"new": GalleryState(), "folder": GalleryState()}
+        self.gmode = "new"  # welcher Galerie-Tab gerade angezeigt wird
+        self.folder_load_id = 0
+        self.folder_dirty = True
+        self.folder_loaded_dir: str | None = None
         self.thumbs: list[ImageTk.PhotoImage] = []
         self.thumb_widgets: list[tk.Label] = []
-        self.selected: int | None = None
-        self.marked: set[int] = set()  # per Strg/Shift markierte Bilder
         self.preview_img: ImageTk.PhotoImage | None = None
         self.errors = 0
         self.done_ok = 0
@@ -703,14 +724,30 @@ class App(tk.Tk):
 
     # ------------------------------------------------------------------ Galerie
     def _build_gallery(self, nb) -> None:
-        tab = self.gallery_tab = ttk.Frame(nb, padding=6)
-        nb.add(tab, text=t("tab.gallery"))
+        # Zwei Tabs teilen sich eine Galerie-Ansicht (self.gal_frame wird beim Tab-Wechsel umgehängt)
+        self.tab_new = ttk.Frame(nb)
+        self.tab_folder = ttk.Frame(nb)
+        nb.add(self.tab_new, text=t("tab.new"))
+        nb.add(self.tab_folder, text=t("tab.gallery"))
+        tab = self.gal_frame = ttk.Frame(nb, padding=6)
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
         head = ttk.Frame(tab)
-        head.grid(row=0, column=0, sticky="ew", pady=(0, 4))
-        ttk.Label(head, text=t("gal.hint"), style="Hint.TLabel", wraplength=390, justify="left").pack(side="left")
-        ttk.Button(head, text=t("btn.load_images"), command=self._load_images).pack(side="right")
+        head.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+        self.head_new = ttk.Frame(head)
+        ttk.Label(self.head_new, text=t("gal.hint"), style="Hint.TLabel", wraplength=470,
+                  justify="left").pack(side="left")
+        ttk.Button(self.head_new, text=t("btn.load_images"), command=self._load_images).pack(side="right")
+        self.head_folder = ttk.Frame(head)
+        ttk.Label(self.head_folder, text=t("gal.search")).pack(side="left")
+        self.v["folder_filter"] = tk.StringVar(self)
+        search = ttk.Entry(self.head_folder, textvariable=self.v["folder_filter"], width=22)
+        search.pack(side="left", padx=(4, 8))
+        self.v["folder_filter"].trace_add("write", lambda *a: self._apply_folder_filter())
+        ttk.Button(self.head_folder, text=t("btn.refresh"), command=self._load_folder).pack(side="left")
+        self.folder_info = ttk.Label(self.head_folder, text="", style="Hint.TLabel")
+        self.folder_info.pack(side="left", padx=(10, 0))
+        nb.bind("<<NotebookTabChanged>>", lambda e: self._on_right_tab())
         gal = ttk.Frame(tab, relief="sunken", borderwidth=1)
         gal.grid(row=1, column=0, sticky="nsew")
         gal.rowconfigure(0, weight=1)
@@ -760,6 +797,7 @@ class App(tk.Tk):
         v = self.v
         tab = ttk.Frame(nb, padding=6)
         nb.add(tab, text=t("tab.list"))
+        self._show_mode(self.gmode, force=True)
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
 
@@ -872,16 +910,12 @@ class App(tk.Tk):
         set_language(code)
         settings_mod.save(self.cfg)
         players = list(self.players.values())
-        selected = self.selected
         right_tab = self.right_nb.index("current")
         left_tab = self.left_nb.index("current")
         self.root_frame.destroy()
         self.thumb_widgets, self.thumbs, self.players = [], [], {}
         self._build()
         self._load_into_ui()
-        self._rebuild_gallery()
-        if selected is not None:
-            self._select(selected)
         for p in players:
             iid = self.tree.insert("", "end")
             self.players[iid] = p
@@ -1173,7 +1207,7 @@ class App(tk.Tk):
             return False
         return True
 
-    def _run(self, gen: Generator, jobs: list[Job], kind: str, replace_idx: int | None = None) -> None:
+    def _run(self, gen: Generator, jobs: list[Job], kind: str, replace_idx: tuple[str, int] | None = None) -> None:
         """Startet die Jobs im Hintergrund. kind: batch | list | aging | reroll"""
         if not jobs:
             return
@@ -1207,6 +1241,7 @@ class App(tk.Tk):
             messagebox.showerror(APP_NAME, str(exc))
             return
         self.right_nb.select(0)
+        self._show_mode("new")
         jobs = [Job(options=copy.deepcopy(self.cfg.face)) for _ in range(self.cfg.count)]
         self._run(gen, jobs, "batch")
 
@@ -1237,10 +1272,11 @@ class App(tk.Tk):
                     self.run_pos = (min(i + 1, total), total)
                 if kind == "done":
                     self.done_ok += 1
-                    if replace_idx is not None and replace_idx < len(self.faces):
+                    if replace_idx is not None:
                         self._replace_face(replace_idx, payload)
                     else:
                         self._add_face(payload)
+                    self.folder_dirty = True
                     if job.tag and self.tree.exists(job.tag):
                         self.tree.set(job.tag, "status", "✓ " + payload.path.name)
                         self.tree.item(job.tag, tags=("ok",))
@@ -1263,29 +1299,137 @@ class App(tk.Tk):
                     self.status.config(text=t("status.finished", n=self.done_ok, where=where)
                                        + (t("status.finished_err", n=self.errors) if self.errors else ""))
                     self._update_list_info()
+                    if self.gmode == "folder":
+                        self._load_folder()
+                elif kind == "folder":
+                    self._folder_batch(i, total, payload, run_kind == "done")
         except queue.Empty:
             pass
         self.after(150, self._poll)
 
     # ================================================================== Galerie
     def _add_face(self, face: GeneratedFace) -> None:
-        self.faces.append(face)
-        for old in self.faces[:-KEEP_RAW]:
+        """Neu erzeugte Bilder landen immer im Tab 'Neu erstellt'."""
+        st = self.gal["new"]
+        st.faces.append(face)
+        for old in st.faces[:-KEEP_RAW]:
             old.raw = None
-        self._rebuild_gallery()
-        self._select(len(self.faces) - 1)
-        self.canvas.yview_moveto(1.0)
+        if self.gmode == "new":
+            self._append_thumbs(len(st.faces) - 1)
+            self._select(len(st.faces) - 1)
+            self.canvas.yview_moveto(1.0)
 
-    def _replace_face(self, idx: int, face: GeneratedFace) -> None:
-        self.faces[idx] = face
-        self._rebuild_gallery()
-        self._select(idx)
+    def _replace_face(self, target: tuple[str, int], face: GeneratedFace) -> None:
+        mode, idx = target
+        st = self.gal[mode]
+        if 0 <= idx < len(st.faces):
+            old = st.faces[idx]
+            st.faces[idx] = face
+            if old in st.all_faces:
+                st.all_faces[st.all_faces.index(old)] = face
+        if mode == self.gmode:
+            self._rebuild_gallery()
+            self._select(idx)
+
+    # ---- Galerie-Tabs umschalten
+    def _on_right_tab(self) -> None:
+        idx = self.right_nb.index("current")
+        if idx in (0, 1):
+            self._show_mode("new" if idx == 0 else "folder")
+
+    def _show_mode(self, mode: str, force: bool = False) -> None:
+        """Hängt die gemeinsame Galerie-Ansicht in den gewählten Tab und zeigt dessen Bilder."""
+        tab = self.tab_new if mode == "new" else self.tab_folder
+        changed = force or mode != self.gmode or self.gal_frame.winfo_manager() == ""
+        self.gmode = mode
+        if changed:
+            self.gal_frame.pack_forget()
+            self.gal_frame.pack(in_=tab, fill="both", expand=True)
+            self.gal_frame.lift()
+            (self.head_folder if mode == "new" else self.head_new).pack_forget()
+            (self.head_new if mode == "new" else self.head_folder).pack(fill="x")
+            self._rebuild_gallery()
+            self._select(self.selected if self.selected is not None else -1, keep_marks=True)
+        if mode == "folder":
+            current_dir = self.v["output_dir"].get().strip() or self.cfg.output_dir
+            if self.folder_dirty or current_dir != self.folder_loaded_dir:
+                self._load_folder()
+            elif not self.folder_info.cget("text"):  # z. B. nach Sprachwechsel neu aufgebaut
+                n = len(self.gal["folder"].all_faces)
+                self.folder_info.config(text=t("gal.count", n=n) if n else t("gal.empty"))
+
+    # ---- Ordner-Galerie: alle Bilder im Speicherort
+    def _load_folder(self) -> None:
+        self._read_from_ui()
+        base = self.cfg.output_dir
+        self.folder_load_id += 1
+        lid = self.folder_load_id
+        st = self.gal["folder"]
+        st.faces, st.all_faces, st.selected, st.marked = [], [], None, set()
+        self.folder_dirty, self.folder_loaded_dir = False, base
+        if self.gmode == "folder":
+            self._rebuild_gallery()
+            self._select(-1)
+        self.folder_info.config(text=t("gal.loading"))
+        fallback = copy.deepcopy(self.cfg.face)
+
+        def work():
+            files = list_folder_images(base, FOLDER_MAX + 1)
+            total = len(files)
+            batch: list[GeneratedFace] = []
+            for p in files[:FOLDER_MAX]:
+                if lid != self.folder_load_id:
+                    return  # neuer Ladevorgang gestartet
+                try:
+                    batch.append(load_face(p, fallback))
+                except Exception:  # noqa: BLE001 – keine gültige Bilddatei
+                    continue
+                if len(batch) >= 24:
+                    self.q.put(("folder", lid, total, None, batch, "", None))
+                    batch = []
+            self.q.put(("folder", lid, total, None, batch, "done", None))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _folder_batch(self, lid: int, total: int, faces: list[GeneratedFace], done: bool) -> None:
+        if lid != self.folder_load_id:
+            return
+        st = self.gal["folder"]
+        st.all_faces.extend(faces)
+        key = search_key(self.v["folder_filter"].get())
+        start = len(st.faces)
+        st.faces.extend(f for f in faces if key in search_key(f.path.name))
+        if self.gmode == "folder" and len(st.faces) > start:
+            self._append_thumbs(start)
+            if st.selected is None:
+                self._select(0)
+        n = len(st.all_faces)
+        if not done:
+            self.folder_info.config(text=t("gal.loading") + f" {n}")
+        elif n == 0:
+            self.folder_info.config(text=t("gal.empty"))
+        else:
+            self.folder_info.config(text=t("gal.count", n=n) + (t("gal.capped", n=FOLDER_MAX) if total > FOLDER_MAX
+                                                               else ""))
+
+    def _apply_folder_filter(self) -> None:
+        st = self.gal["folder"]
+        key = search_key(self.v["folder_filter"].get())
+        st.faces = [f for f in st.all_faces if key in search_key(f.path.name)]
+        st.selected, st.marked = None, set()
+        if self.gmode == "folder":
+            self._rebuild_gallery()
+            self._select(0 if st.faces else -1)
 
     def _rebuild_gallery(self) -> None:
         for w in self.thumb_widgets:
             w.destroy()
         self.thumb_widgets, self.thumbs = [], []
-        for idx, face in enumerate(self.faces):
+        self._append_thumbs(0)
+
+    def _append_thumbs(self, start: int) -> None:
+        for idx in range(start, len(self.faces)):
+            face = self.faces[idx]
             photo = ImageTk.PhotoImage(_on_checker(face.image, THUMB))
             lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background="#f4f4f4",
                            cursor="hand2")
@@ -1364,7 +1508,8 @@ class App(tk.Tk):
             return
         # gleicher Dateiname -> Datei wird ersetzt (wichtig für Spielerlisten-Namen)
         gen = self._make_generator(out_dir=face.path.parent, overwrite=True)
-        self._run(gen, [Job(options=copy.deepcopy(face.options), filename=face.path.stem)], "reroll", self.selected)
+        self._run(gen, [Job(options=copy.deepcopy(face.options), filename=face.path.stem)], "reroll",
+                  (self.gmode, self.selected))
 
     def _aging(self) -> None:
         face = self._current()
@@ -1394,6 +1539,8 @@ class App(tk.Tk):
         if not paths:
             return
         self._read_from_ui()
+        self.right_nb.select(0)
+        self._show_mode("new")
         loaded, failed = 0, []
         for p in paths:
             try:
@@ -1405,7 +1552,6 @@ class App(tk.Tk):
             self._rebuild_gallery()
             self._select(len(self.faces) - 1)
             self.canvas.yview_moveto(1.0)
-            self.right_nb.select(0)
             self.status.config(text=t("status.loaded", n=loaded))
         if failed:
             messagebox.showwarning(APP_NAME, t("msg.load_failed", names="\n".join(failed[:20])))
@@ -1422,8 +1568,14 @@ class App(tk.Tk):
         failed = set(trash_files([f.path for f in faces]))
         gone = [f for f in faces if f.path not in failed]
         first = min((self.faces.index(f) for f in gone), default=self.selected or 0)
+        gone_paths = {f.path for f in gone}
+        for mode, st in self.gal.items():  # aus beiden Galerie-Tabs entfernen
+            st.faces = [f for f in st.faces if f.path not in gone_paths]
+            st.all_faces = [f for f in st.all_faces if f.path not in gone_paths]
+            if mode != self.gmode:
+                st.selected, st.marked = (0 if st.faces else None), set()
+        self.marked = set()
         for f in gone:
-            self.faces.remove(f)
             for iid, p in self.players.items():
                 if p.image == f.path:
                     p.image = None
@@ -1454,6 +1606,10 @@ class App(tk.Tk):
         except OSError as exc:
             messagebox.showerror(APP_NAME, t("msg.rename_failed", e=exc))
             return
+        for st in self.gal.values():  # dasselbe Bild im anderen Galerie-Tab mit umbenennen
+            for f in st.all_faces + st.faces:
+                if f is not face and f.path == old:
+                    f.path = face.path
         for iid, p in self.players.items():
             if p.image == old:
                 p.image = face.path
@@ -1464,11 +1620,11 @@ class App(tk.Tk):
 
     def _on_key_delete(self, event) -> None:
         if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
-                and str(self.right_nb.select()) == str(self.gallery_tab):
+                and self.right_nb.index("current") in (0, 1):
             self._delete()
 
     def _on_key_rename(self, event) -> None:
-        if str(self.right_nb.select()) == str(self.gallery_tab):
+        if self.right_nb.index("current") in (0, 1):
             self._rename()
 
     def _reveal(self) -> None:
