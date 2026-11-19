@@ -10,6 +10,11 @@ on:
         description: "Release mit diesem Tag veröffentlichen (z. B. v1.5.1) – leer lassen für nur bauen"
         required: false
         default: ""
+      prerelease:
+        description: "Als Testversion (Pre-Release) veröffentlichen – erscheint nicht im Update-Hinweis"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -33,7 +38,7 @@ jobs:
         run: python -m pytest -q
 
       - name: EXE bauen
-        run: python -m PyInstaller --noconfirm --onefile --windowed --name FM27-FaceGenerator --collect-data cv2 run.py
+        run: python -m PyInstaller --noconfirm --onefile --windowed --name FM27-FaceGenerator --collect-data cv2 --collect-all tkinterdnd2 --collect-all send2trash run.py
 
       - name: Selbsttest der EXE
         shell: pwsh
@@ -61,6 +66,7 @@ jobs:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           name: FM27 Face Generator ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
+          prerelease: ${{ inputs.prerelease == true }}
           body: |
             Windows-Programm zum Erzeugen realistischer Spielergesichter (250 × 250 px, PNG) für Football Manager 27.
 

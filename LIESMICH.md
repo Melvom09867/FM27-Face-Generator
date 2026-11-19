@@ -75,7 +75,12 @@ Der Speicherort und alle anderen Einstellungen werden automatisch gemerkt.
 
 ### Updates
 
-Neue Version herunterladen (wie oben) und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
+Gibt es eine neue Version, erscheint beim Start ein Hinweis: **„Ja, bitte“** öffnet die Download-Seite,
+**„Nein, will zocken“** schließt das Fenster. Mit **„Diese Version nicht mehr anzeigen“** wird genau diese
+Version nicht mehr gemeldet – die nächste neuere aber wieder. (Ausschalten: Tab **Ausgabe** → „Beim Start nach
+Updates suchen“. Gesendet wird dabei nur eine Anfrage an GitHub, keine persönlichen Daten.)
+
+Neue Version herunterladen und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
 Deine Einstellungen bleiben erhalten (gespeichert unter `%APPDATA%\FM27FaceGenerator`).
 
 ### Deinstallation
@@ -101,7 +106,20 @@ Auch Länder, Haarfarben, Persönlichkeiten usw. werden übersetzt. Persönlichk
 2. Optional im Tab **Aussehen** Details festlegen, z. B. Shirt in Vereinsfarben.
 3. Unten **Anzahl** eintragen und **„Bilder generieren“** klicken.
 4. Gefällt ein Bild nicht: in der Galerie anklicken → **„Neu würfeln“** (ersetzt die Datei).
-5. Im Spiel das passende PNG per FaceDrop auf den Spieler ziehen.
+5. Im Spiel das passende PNG per FaceDrop auf den Spieler ziehen – **direkt aus der Galerie** (Vorschaubild
+   oder großes Bild mit der Maus ins FM-Fenster ziehen) oder wie bisher aus dem Ordner.
+
+### Galerie: ziehen, umbenennen, löschen
+
+- **Ziehen**: Bild mit gedrückter linker Maustaste aus der Galerie in ein anderes Programm ziehen
+  (FM mit FaceDrop, Explorer …). Mehrere markierte Bilder werden zusammen gezogen.
+  FM muss dafür im **Fenstermodus** laufen. Startet eines der Programme „als Administrator“ und das andere nicht,
+  blockiert Windows das Ziehen – dann beide gleich starten.
+- **Mehrere auswählen**: **Strg + Klick** (einzeln dazu/weg) oder **Shift + Klick** (Bereich).
+- **Umbenennen**: Button **„Umbenennen (F2)“** oder Taste **F2** – z. B. in den Spielernamen. Das Alterungs-Set
+  funktioniert danach weiter (die Infos stecken in der Datei).
+- **Löschen**: Button **„Löschen“** oder Taste **Entf** – nach Rückfrage landen die Bilder im **Papierkorb**
+  (wiederherstellbar).
 
 ### Doppelte Herkunft (Eltern aus einem anderen Land)
 
@@ -295,6 +313,18 @@ du musst nichts umstellen.
 Tipp: Football Manager und Forge gleichzeitig laufen zu lassen geht, aber Bilder lieber vorab erzeugen –
 beide brauchen Grafikspeicher.
 
+### Forge automatisch mit dem Generator starten
+
+Tab **KI** → bei **„Forge-Ordner“** auf **„…“** klicken und den Forge-Hauptordner wählen (dort liegen `run.bat`
+und `update.bat`, z. B. `C:\AI\Forge`). Dann **„Forge mit dem Generator starten und beenden“** anhaken.
+
+- Ab dem nächsten Start läuft Forge **unsichtbar im Hintergrund** hoch (unten steht „Forge startet …“,
+  meist 30–90 Sekunden), ohne dass sich ein Browserfenster öffnet.
+- Beim **Schließen des Generators** wird Forge wieder beendet – aber nur, wenn der Generator es selbst
+  gestartet hat. Lief Forge schon vorher, bleibt es an.
+- Mit **„Jetzt starten“** startet Forge sofort, ohne Neustart des Generators.
+- Läuft etwas schief, steht das Protokoll von Forge in `%APPDATA%\FM27FaceGenerator\forge.log`.
+
 ---
 
 ## Eigene Länder / Verteilungen anpassen
@@ -321,6 +351,14 @@ Länder, die das Programm nicht kennt, funktionieren trotzdem – dann entscheid
 
 - **Länderfelder**: tippen (z. B. `Port`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
 - **Alle anderen Auswahlfelder**: anklicken und tippen – springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
+- **Galerie**: **F2** = umbenennen, **Entf** = in den Papierkorb, **Strg/Shift + Klick** = mehrere auswählen.
+
+## Trikot in Vereinsfarben
+
+Tab **Aussehen**: **Kleidung** (z. B. „Trikot ohne Logo“), **Shirt-Farbe**, **Muster** (einfarbig, Längsstreifen,
+Querstreifen, andersfarbige Ärmel, andersfarbiger Kragen) und **Zweitfarbe** wählen.
+Mit **„Vereins-Vorlage → Speichern…“** merkt sich der Generator die Kombination unter einem Namen
+(z. B. „Mein Verein“) – später einfach in der Liste auswählen.
 
 ## Tipps für realistische Ergebnisse
 

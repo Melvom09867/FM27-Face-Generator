@@ -23,12 +23,16 @@ from . import APP_NAME, __version__
 from . import settings as settings_mod
 from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWebUIBackend, check_sd_webui
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
-from .generator import GeneratedFace, Generator, Job, aging_jobs, load_face, parse_ages
+from .forge import ForgeManager, api_enabled, find_launcher
+from .update import check_latest, should_notify
+from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, load_face, parse_ages, rename_face,
+                        trash_files)
 from .i18n import LANGUAGES, country, ethnicity, get_language, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
 from .prompts import (AUTO, BACKGROUNDS, CLOTHING, EXPRESSIONS, FACIAL_HAIR, GENDERS, HAIR_COLORS,
-                      HAIR_STYLES_FEMALE, HAIR_STYLES_MALE, NO_SECOND, PARENT_MODES, SHIRT_COLORS)
+                      HAIR_STYLES_FEMALE, HAIR_STYLES_MALE, NO_SECOND, PARENT_MODES, SHIRT_COLORS, SHIRT_PATTERNS)
+from tkinter import simpledialog
 
 THUMB = 125
 PREVIEW = 250
@@ -150,6 +154,39 @@ class LanguageDialog(tk.Toplevel):
         return dlg.result
 
 
+class UpdateDialog(tk.Toplevel):
+    """Hinweis auf neue Version: 'Ja, bitte' öffnet die Download-Seite, 'Nein, will zocken' schließt."""
+
+    def __init__(self, master, current: str, latest: str):
+        super().__init__(master)
+        self.title(t("upd.title"))
+        self.resizable(False, False)
+        self.transient(master)
+        self.open_page = False
+        self.skip = tk.BooleanVar(self, False)
+        frm = ttk.Frame(self, padding=16)
+        frm.pack(fill="both", expand=True)
+        ttk.Label(frm, text=t("upd.title"), font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        ttk.Label(frm, text=t("upd.text", new=latest, cur=current), justify="left", wraplength=460).pack(anchor="w")
+        ttk.Checkbutton(frm, text=t("upd.skip"), variable=self.skip).pack(anchor="w", pady=(12, 0))
+        btns = ttk.Frame(frm)
+        btns.pack(fill="x", pady=(14, 0))
+        ttk.Button(btns, text=t("upd.no"), command=self.destroy).pack(side="right")
+        yes = ttk.Button(btns, text=t("upd.yes"), command=self._yes)
+        yes.pack(side="right", padx=(0, 8))
+        yes.focus_set()
+        self.bind("<Return>", lambda e: self._yes())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_reqwidth()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_reqheight()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+
+    def _yes(self) -> None:
+        self.open_page = True
+        self.destroy()
+
+
 # ====================================================================== Hauptfenster
 class App(tk.Tk):
     def __init__(self) -> None:
@@ -178,17 +215,58 @@ class App(tk.Tk):
         self.thumbs: list[ImageTk.PhotoImage] = []
         self.thumb_widgets: list[tk.Label] = []
         self.selected: int | None = None
+        self.marked: set[int] = set()  # per Strg/Shift markierte Bilder
         self.preview_img: ImageTk.PhotoImage | None = None
         self.errors = 0
         self.done_ok = 0
         self.players: dict[str, Player] = {}  # Treeview-ID -> Spieler
 
+        self.dnd = self._init_dnd()
+        self.forge = ForgeManager(settings_mod.config_dir() / "forge.log")
         self._build()
         self._load_into_ui()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.bind("<Delete>", self._on_key_delete)
+        if self.cfg.check_updates:
+            threading.Thread(target=lambda: self.q.put(("update", 0, 0, None, check_latest(), "", None)),
+                             daemon=True).start()
+        if self.cfg.forge_autostart and self.cfg.forge_dir \
+                and self.cfg.backend.backend == StableDiffusionWebUIBackend.name:
+            self.after(800, lambda: self._forge_start(True))
+        self.bind("<F2>", self._on_key_rename)
         self.after(100, self._poll)
         if self.warnings:
             self.after(500, lambda: messagebox.showwarning(APP_NAME, "\n".join(self.warnings)))
+
+    # ================================================================== Drag and Drop (tkdnd)
+    def _init_dnd(self) -> bool:
+        """Lädt tkdnd, damit Bilder aus der Galerie in andere Programme gezogen werden können
+        (z. B. per FaceDrop in FM oder in den Explorer). Ohne tkdnd läuft alles andere normal weiter."""
+        try:
+            from tkinterdnd2 import TkinterDnD
+            TkinterDnD._require(self)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _make_drag_source(self, widget, index_getter: Callable[[], int | None]) -> None:
+        if not self.dnd:
+            return
+        try:
+            from tkinterdnd2 import COPY, DND_FILES
+            widget.drag_source_register(1, DND_FILES)
+
+            def init(_event):
+                idx = index_getter()
+                if idx is None or not (0 <= idx < len(self.faces)):
+                    return "refuse_drop"
+                faces = self._marked_faces() if idx in self.marked else [self.faces[idx]]
+                files = tuple(str(f.path) for f in faces if f.path.exists())
+                return (COPY, DND_FILES, files) if files else "refuse_drop"
+
+            widget.dnd_bind("<<DragInitCmd>>", init)
+        except Exception:  # noqa: BLE001
+            pass
 
     # ================================================================== Aufbau
     def _style(self) -> None:
@@ -287,6 +365,7 @@ class App(tk.Tk):
         self.ocb: dict[str, ttk.Combobox] = {}
         for key in ("country", "second_country", "parent_mode", "ethnicity", "gender", "hair_color", "hair_style",
                     "facial_hair", "expression", "clothing", "shirt_color", "background", "extra_prompt",
+                    "shirt_color2", "shirt_pattern", "club_preset",
                     "output_dir", "pattern", "backend", "pollinations_url", "pollinations_model",
                     "pollinations_token", "sd_url", "list_name_mode", "list_parent_mode", "aging_ages",
                     "list_country", "list_country2", "personality", "personality_strength", "list_personality"):
@@ -295,7 +374,8 @@ class App(tk.Tk):
             v[key] = tk.IntVar(self)
         for key in ("zoom", "face_y", "delay", "sd_cfg"):
             v[key] = tk.DoubleVar(self)
-        for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite"):
+        v["forge_dir"] = tk.StringVar(self)
+        for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite", "forge_autostart", "check_updates"):
             v[key] = tk.BooleanVar(self)
 
         root = self.root_frame = ttk.Frame(self, padding=8)
@@ -375,13 +455,66 @@ class App(tk.Tk):
         self._row(t_, 2, t("lbl.beard"), self.beard_cb, t("hint.beard"))
         self._row(t_, 4, t("lbl.expression"), self._ocombo(t_, "expression", EXPRESSIONS, lambda k: opt("expression", k)))
         self._row(t_, 5, t("lbl.clothing"), self._ocombo(t_, "clothing", CLOTHING, lambda k: opt("clothing", k)))
-        self._row(t_, 6, t("lbl.shirt"), self._ocombo(t_, "shirt_color", SHIRT_COLORS, lambda k: opt("shirt_color", k)),
-                  t("hint.shirt"))
-        self._row(t_, 8, t("lbl.background"), self._ocombo(t_, "background", BACKGROUNDS, lambda k: opt("background", k)),
+        self._row(t_, 6, t("lbl.shirt"), self._ocombo(t_, "shirt_color", SHIRT_COLORS, lambda k: opt("shirt_color", k)))
+        pat_cb = self._ocombo(t_, "shirt_pattern", SHIRT_PATTERNS, lambda k: opt("shirt_pattern", k))
+        pat_cb.bind("<<ComboboxSelected>>", lambda e: self._update_pattern(), add="+")
+        self._row(t_, 7, t("lbl.shirt_pattern"), pat_cb)
+        self.color2_cb = self._ocombo(t_, "shirt_color2", SHIRT_COLORS, lambda k: opt("shirt_color", k))
+        self._row(t_, 8, t("lbl.shirt2"), self.color2_cb)
+        cf = ttk.Frame(t_)
+        cf.columnconfigure(0, weight=1)
+        self.club_cb = ttk.Combobox(cf, textvariable=v["club_preset"], state="readonly", width=28)
+        self.club_cb.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.club_cb.bind("<<ComboboxSelected>>", lambda e: self._apply_club_preset())
+        ttk.Button(cf, text=t("btn.save_preset"), command=self._save_club_preset).grid(row=1, column=0, sticky="ew",
+                                                                                       pady=(3, 0))
+        ttk.Button(cf, text=t("btn.delete"), command=self._delete_club_preset).grid(row=1, column=1, sticky="ew",
+                                                                                 padx=(4, 0), pady=(3, 0))
+        cf.columnconfigure(1, weight=1)
+        self._row(t_, 9, t("lbl.club"), cf, t("hint.club"))
+        self._row(t_, 11, t("lbl.background"), self._ocombo(t_, "background", BACKGROUNDS, lambda k: opt("background", k)),
                   t("hint.background"))
         ttk.Checkbutton(t_, text=t("chk.skin"), variable=v["skin_details"]).grid(
-            row=10, column=0, columnspan=2, sticky="w", padx=8, pady=4)
-        self._row(t_, 11, t("lbl.extra"), ttk.Entry(t_, textvariable=v["extra_prompt"]), t("hint.extra"))
+            row=13, column=0, columnspan=2, sticky="w", padx=8, pady=4)
+        self._row(t_, 14, t("lbl.extra"), ttk.Entry(t_, textvariable=v["extra_prompt"]), t("hint.extra"))
+
+    # ---- Trikot: Muster und Vereins-Vorlagen
+    def _update_pattern(self) -> None:
+        plain = self._oget("shirt_pattern", "Einfarbig") == "Einfarbig"
+        self.color2_cb.configure(state="disabled" if plain else "readonly")
+
+    def _refresh_club_presets(self, select: str = "") -> None:
+        names = sorted(self.cfg.club_presets, key=str.casefold)
+        self.club_cb["values"] = names
+        self.v["club_preset"].set(select if select in names else "")
+
+    def _apply_club_preset(self) -> None:
+        preset = self.cfg.club_presets.get(self.v["club_preset"].get())
+        if not preset:
+            return
+        for var, valid in (("clothing", CLOTHING), ("shirt_color", SHIRT_COLORS), ("shirt_color2", SHIRT_COLORS),
+                           ("shirt_pattern", SHIRT_PATTERNS)):
+            if preset.get(var) in valid:
+                self._oset(var, preset[var])
+        self._update_pattern()
+
+    def _save_club_preset(self) -> None:
+        name = simpledialog.askstring(APP_NAME, t("dlg.preset_name"), parent=self,
+                                      initialvalue=self.v["club_preset"].get())
+        name = (name or "").strip()
+        if not name:
+            return
+        self.cfg.club_presets[name] = {var: self._oget(var) for var in
+                                       ("clothing", "shirt_color", "shirt_color2", "shirt_pattern")}
+        settings_mod.save(self.cfg)
+        self._refresh_club_presets(name)
+
+    def _delete_club_preset(self) -> None:
+        name = self.v["club_preset"].get()
+        if name in self.cfg.club_presets:
+            del self.cfg.club_presets[name]
+            settings_mod.save(self.cfg)
+        self._refresh_club_presets()
 
     # ------------------------------------------------------------------ Tab: Persönlichkeit
     def _build_tab_personality(self, nb) -> None:
@@ -423,6 +556,8 @@ class App(tk.Tk):
             row=9, column=0, columnspan=2, sticky="w", padx=8, pady=4)
         ttk.Label(t_, text=t("out.always"), style="Head.TLabel").grid(row=10, column=0, columnspan=2, sticky="w",
                                                                      padx=8, pady=8)
+        ttk.Checkbutton(t_, text=t("chk.updates"), variable=v["check_updates"]).grid(
+            row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 0))
 
     # ------------------------------------------------------------------ Tab: KI
     def _build_tab_ai(self, nb) -> None:
@@ -447,14 +582,94 @@ class App(tk.Tk):
         self.sd_test_btn = ttk.Button(sdf, text=t("btn.test"), command=self._test_sd)
         self.sd_test_btn.grid(row=0, column=1, padx=(4, 0))
         self._row(t_, 8, t("lbl.address"), sdf)
-        self._row(t_, 9, t("lbl.steps"), ttk.Spinbox(t_, from_=4, to=80, textvariable=v["sd_steps"], width=6))
-        self._row(t_, 10, "CFG", ttk.Spinbox(t_, from_=1, to=15, increment=0.5, textvariable=v["sd_cfg"], width=6))
-        ttk.Label(t_, text=t("head.general"), style="Head.TLabel").grid(row=11, column=0, sticky="w", padx=8,
+        sp = ttk.Frame(t_)
+        ttk.Spinbox(sp, from_=4, to=80, textvariable=v["sd_steps"], width=5).pack(side="left")
+        ttk.Label(sp, text="   CFG").pack(side="left")
+        ttk.Spinbox(sp, from_=1, to=15, increment=0.5, textvariable=v["sd_cfg"], width=5).pack(side="left", padx=4)
+        self._row(t_, 9, t("lbl.steps"), sp)
+        ff = ttk.Frame(t_)
+        ff.columnconfigure(0, weight=1)
+        ttk.Entry(ff, textvariable=v["forge_dir"]).grid(row=0, column=0, sticky="ew")
+        ttk.Button(ff, text="…", width=3, command=self._choose_forge_dir).grid(row=0, column=1, padx=(4, 0))
+        ttk.Button(ff, text=t("btn.forge_start"), command=lambda: self._forge_start(False)).grid(row=0, column=2,
+                                                                                               padx=(4, 0))
+        self._row(t_, 10, t("lbl.forge_dir"), ff)
+        ttk.Checkbutton(t_, text=t("chk.forge_auto"), variable=v["forge_autostart"]).grid(
+            row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(2, 0))
+        self.forge_status = ttk.Label(t_, text=self._forge_status_text(), style="Hint.TLabel", wraplength=370,
+                                      justify="left")
+        self.forge_status.grid(row=12, column=0, columnspan=2, sticky="w", padx=8)
+        ttk.Label(t_, text=t("head.general"), style="Head.TLabel").grid(row=13, column=0, sticky="w", padx=8,
                                                                        pady=(10, 0))
-        self._row(t_, 12, t("lbl.gen_size"), ttk.Combobox(t_, textvariable=v["gen_size"], values=[512, 768, 1024],
+        self._row(t_, 14, t("lbl.gen_size"), ttk.Combobox(t_, textvariable=v["gen_size"], values=[512, 768, 1024],
                                                           width=6), t("hint.gen_size"))
-        self._row(t_, 14, t("lbl.delay"), ttk.Spinbox(t_, from_=0, to=60, textvariable=v["delay"], width=6),
-                  t("hint.delay"))
+        self._row(t_, 16, t("lbl.delay"), ttk.Spinbox(t_, from_=0, to=60, textvariable=v["delay"], width=6))
+
+
+    # ---- Update-Hinweis
+    def _show_update(self, info: dict) -> None:
+        dlg = UpdateDialog(self, __version__, info["version"])
+        dlg.grab_set()
+        self.wait_window(dlg)
+        if dlg.skip.get():
+            self.cfg.skip_version = info["version"]
+            settings_mod.save(self.cfg)
+        if dlg.open_page:
+            import webbrowser
+            webbrowser.open(info["url"])
+
+    # ---- Forge automatisch starten/beenden
+    def _forge_status_text(self) -> str:
+        state = getattr(self, "forge", None) and self.forge.state
+        return {"starting": t("forge.starting_short"), "ready": t("forge.ready"), "external": t("forge.already"),
+                "failed": t("forge.failed_short")}.get(state or "", t("hint.forge"))
+
+    def _choose_forge_dir(self) -> None:
+        d = filedialog.askdirectory(title=t("dlg.forge_dir"), initialdir=self.v["forge_dir"].get() or "C:\\")
+        if d:
+            self.v["forge_dir"].set(str(Path(d)))
+            if not find_launcher(d):
+                messagebox.showwarning(APP_NAME, t("forge.not_found", folder=d))
+
+    def _forge_msg(self, text: str) -> None:
+        self.q.put(("forge", 0, 0, None, text, "", None))
+
+    def _forge_start(self, auto: bool) -> None:
+        """Startet Forge im Hintergrund (auto = beim Programmstart, ohne Fehlermeldungs-Fenster bei 'läuft schon')."""
+        self._read_from_ui()
+        settings_mod.save(self.cfg)
+        folder, url = self.cfg.forge_dir, self.cfg.backend.sd_url
+        if self.forge.state == "starting":
+            return
+        if not find_launcher(folder):
+            if not auto or folder:
+                messagebox.showwarning(APP_NAME, t("forge.not_found", folder=folder or "—"))
+            return
+        if api_enabled(folder) is False:
+            messagebox.showwarning(APP_NAME, t("be.no_api"))
+
+        def work():
+            from .forge import api_state
+            if api_state(url) == "ready":
+                self.forge.state = "external"
+                self._forge_msg(t("forge.already"))
+                return
+            try:
+                self.forge.start(folder)
+            except Exception as exc:  # noqa: BLE001
+                self.forge.state = "failed"
+                self._forge_msg(t("forge.failed", log=exc))
+                return
+            self._forge_msg(t("forge.starting", s=0))
+            res = self.forge.wait_ready(url, on_tick=lambda s: self._forge_msg(t("forge.starting", s=s)))
+            if res == "ready":
+                self._forge_msg(t("forge.ready"))
+            elif res == "no_api":
+                self._forge_msg(t("be.no_api").split("\n")[0])
+            elif res != "cancelled":
+                self._forge_msg(t("forge.failed", log=self.forge.log_path))
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _on_backend_changed(self) -> None:
         """Beim Wechsel auf lokales SD passende Werte für SDXL-Modelle (z. B. RealVisXL) setzen."""
@@ -495,13 +710,13 @@ class App(tk.Tk):
 
     # ------------------------------------------------------------------ Galerie
     def _build_gallery(self, nb) -> None:
-        tab = ttk.Frame(nb, padding=6)
+        tab = self.gallery_tab = ttk.Frame(nb, padding=6)
         nb.add(tab, text=t("tab.gallery"))
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
         head = ttk.Frame(tab)
         head.grid(row=0, column=0, sticky="ew", pady=(0, 4))
-        ttk.Label(head, text=t("gal.hint"), style="Hint.TLabel").pack(side="left")
+        ttk.Label(head, text=t("gal.hint"), style="Hint.TLabel", wraplength=390, justify="left").pack(side="left")
         ttk.Button(head, text=t("btn.load_images"), command=self._load_images).pack(side="right")
         gal = ttk.Frame(tab, relief="sunken", borderwidth=1)
         gal.grid(row=1, column=0, sticky="nsew")
@@ -526,15 +741,17 @@ class App(tk.Tk):
         # leeres Platzhalterbild: ohne Bild würde Tk width/height in Zeichen statt Pixeln messen
         self.blank_img = ImageTk.PhotoImage(Image.new("RGB", (PREVIEW, PREVIEW), (221, 221, 221)))
         self.preview = tk.Label(side, image=self.blank_img, width=PREVIEW, height=PREVIEW, background="#ddd",
-                                relief="sunken")
+                                relief="sunken", cursor="hand2")
+        self._make_drag_source(self.preview, lambda: self.selected)
         self.preview.pack(pady=4)
         self.sel_info = ttk.Label(side, text="", wraplength=PREVIEW, justify="left", style="Hint.TLabel")
         self.sel_info.pack(anchor="w", fill="x")
         btns = ttk.Frame(side)
         btns.pack(fill="x")
         btns.columnconfigure((0, 1), weight=1)
-        for n, (text, cmd) in enumerate(((t("btn.reroll"), self._reroll), (t("btn.delete"), self._delete),
-                                         (t("btn.reveal"), self._reveal), (t("btn.copy_prompt"), self._copy_prompt))):
+        for n, (text, cmd) in enumerate(((t("btn.reroll"), self._reroll), (t("btn.rename"), self._rename),
+                                         (t("btn.reveal"), self._reveal), (t("btn.copy_prompt"), self._copy_prompt),
+                                         (t("btn.delete"), self._delete))):
             ttk.Button(btns, text=text, command=cmd).grid(row=n // 2, column=n % 2, sticky="ew", padx=1, pady=1)
 
         aging = ttk.Frame(tab)
@@ -699,6 +916,10 @@ class App(tk.Tk):
         self._oset("expression", f.expression if f.expression in EXPRESSIONS else next(iter(EXPRESSIONS)))
         self._oset("clothing", f.clothing if f.clothing in CLOTHING else next(iter(CLOTHING)))
         self._oset("shirt_color", f.shirt_color if f.shirt_color in SHIRT_COLORS else "Zufällig")
+        self._oset("shirt_color2", f.shirt_color2 if f.shirt_color2 in SHIRT_COLORS else "Zufällig")
+        self._oset("shirt_pattern", f.shirt_pattern if f.shirt_pattern in SHIRT_PATTERNS else "Einfarbig")
+        self._update_pattern()
+        self._refresh_club_presets()
         self._oset("background", f.background if f.background in BACKGROUNDS else next(iter(BACKGROUNDS)))
         v["skin_details"].set(f.skin_details)
         v["extra_prompt"].set(f.extra_prompt)
@@ -712,6 +933,9 @@ class App(tk.Tk):
         self._update_pers_hint()
 
         v["output_dir"].set(c.output_dir)
+        v["forge_dir"].set(c.forge_dir)
+        v["forge_autostart"].set(c.forge_autostart)
+        v["check_updates"].set(c.check_updates)
         v["pattern"].set(c.pattern)
         v["count"].set(c.count)
         v["delay"].set(c.delay)
@@ -757,6 +981,8 @@ class App(tk.Tk):
         f.expression = self._oget("expression", next(iter(EXPRESSIONS)))
         f.clothing = self._oget("clothing", next(iter(CLOTHING)))
         f.shirt_color = self._oget("shirt_color", "Zufällig")
+        f.shirt_color2 = self._oget("shirt_color2", "Zufällig")
+        f.shirt_pattern = self._oget("shirt_pattern", "Einfarbig")
         f.background = self._oget("background", next(iter(BACKGROUNDS)))
         f.skin_details = bool(v["skin_details"].get())
         f.extra_prompt = v["extra_prompt"].get()
@@ -765,6 +991,9 @@ class App(tk.Tk):
         f.tattoo_min_age = num("tattoo_min_age", 16)
 
         c.output_dir = v["output_dir"].get().strip() or str(settings_mod.default_output_dir())
+        c.forge_dir = v["forge_dir"].get().strip()
+        c.forge_autostart = bool(v["forge_autostart"].get())
+        c.check_updates = bool(v["check_updates"].get())
         c.pattern = v["pattern"].get().strip()
         c.count = max(1, num("count", 5))
         c.delay = max(0.0, num("delay", 3.0, float))
@@ -941,6 +1170,9 @@ class App(tk.Tk):
             return False
         self._read_from_ui()
         settings_mod.save(self.cfg)
+        if self.forge.state == "starting" and self.cfg.backend.backend == StableDiffusionWebUIBackend.name:
+            messagebox.showinfo(APP_NAME, t("msg.forge_starting"))
+            return False
         try:
             Path(self.cfg.output_dir).mkdir(parents=True, exist_ok=True)
         except OSError as exc:
@@ -994,6 +1226,16 @@ class App(tk.Tk):
         try:
             while True:
                 kind, i, total, job, payload, run_kind, replace_idx = self.q.get_nowait()
+                if kind == "update":
+                    if payload and should_notify(__version__, payload["version"], self.cfg.skip_version):
+                        self._show_update(payload)
+                    continue
+                if kind == "forge":
+                    if hasattr(self, "forge_status") and self.forge_status.winfo_exists():
+                        self.forge_status.config(text=payload)
+                    if not self._busy():
+                        self.status.config(text=payload[:140])
+                    continue
                 if kind == "info":
                     pos, tot = getattr(self, "run_pos", (1, total))
                     self.status.config(text=t("status.info", pos=pos, total=tot, msg=payload)[:140])
@@ -1054,26 +1296,53 @@ class App(tk.Tk):
             photo = ImageTk.PhotoImage(_on_checker(face.image, THUMB))
             lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background="#f4f4f4",
                            cursor="hand2")
-            lbl.bind("<Button-1>", lambda e, i=idx: self._select(i))
+            lbl.bind("<Button-1>", lambda e, i=idx: self._click_thumb(e, i))
             lbl.bind("<Double-Button-1>", lambda e, i=idx: open_path(self.faces[i].path))
+            self._make_drag_source(lbl, lambda i=idx: i)
             self.thumbs.append(photo)
             self.thumb_widgets.append(lbl)
         self._relayout()
+
+    def _click_thumb(self, event, idx: int) -> None:
+        """Klick = auswählen, Strg+Klick = hinzufügen/entfernen, Shift+Klick = Bereich."""
+        ctrl, shift = bool(event.state & 0x4), bool(event.state & 0x1)
+        if shift and self.selected is not None:
+            lo, hi = sorted((self.selected, idx))
+            self.marked = set(range(lo, hi + 1))
+        elif ctrl:
+            self.marked = set(self.marked) ^ {idx}
+            if not self.marked:
+                self.marked = {idx}
+        else:
+            self.marked = {idx}
+        self._select(idx, keep_marks=True)
+        try:
+            event.widget.focus_set()
+        except tk.TclError:
+            pass
+
+    def _marked_faces(self) -> list[GeneratedFace]:
+        idxs = sorted(i for i in self.marked if 0 <= i < len(self.faces)) or (
+            [self.selected] if self.selected is not None and self.selected < len(self.faces) else [])
+        return [self.faces[i] for i in idxs]
 
     def _relayout(self) -> None:
         cols = max(1, self.canvas.winfo_width() // (THUMB + 12))
         for idx, lbl in enumerate(self.thumb_widgets):
             lbl.grid(row=idx // cols, column=idx % cols, padx=3, pady=3)
 
-    def _select(self, idx: int) -> None:
+    def _select(self, idx: int, keep_marks: bool = False) -> None:
+        if not keep_marks:
+            self.marked = {idx} if 0 <= idx < len(self.faces) else set()
         if not (0 <= idx < len(self.faces)):
             self.selected = None
+            self.marked = set()
             self.preview.config(image=self.blank_img)
             self.sel_info.config(text="")
             return
         self.selected = idx
         for i, lbl in enumerate(self.thumb_widgets):
-            lbl.config(background="#2f7de1" if i == idx else "#f4f4f4")
+            lbl.config(background="#2f7de1" if i == idx else ("#9cc3f2" if i in self.marked else "#f4f4f4"))
         face = self.faces[idx]
         self.preview_img = ImageTk.PhotoImage(_on_checker(face.image, PREVIEW))
         self.preview.config(image=self.preview_img, width=PREVIEW, height=PREVIEW)
@@ -1149,17 +1418,65 @@ class App(tk.Tk):
             messagebox.showwarning(APP_NAME, t("msg.load_failed", names="\n".join(failed[:20])))
 
     def _delete(self) -> None:
-        face = self._current()
-        if not face:
+        """Markierte Bilder nach Rückfrage in den Papierkorb verschieben."""
+        faces = self._marked_faces()
+        if not faces or self._busy():
             return
-        try:
-            face.path.unlink()
-        except OSError:
-            pass
-        idx = self.selected
-        del self.faces[idx]
+        if not messagebox.askyesno(APP_NAME, t("msg.delete_confirm", n=len(faces),
+                                               names="\n".join(f.path.name for f in faces[:8])
+                                               + ("\n…" if len(faces) > 8 else ""))):
+            return
+        failed = set(trash_files([f.path for f in faces]))
+        gone = [f for f in faces if f.path not in failed]
+        first = min((self.faces.index(f) for f in gone), default=self.selected or 0)
+        for f in gone:
+            self.faces.remove(f)
+            for iid, p in self.players.items():
+                if p.image == f.path:
+                    p.image = None
+                    if self.tree.exists(iid):
+                        self.tree.set(iid, "status", "")
+                        self.tree.item(iid, tags=())
         self._rebuild_gallery()
-        self._select(min(idx, len(self.faces) - 1))
+        self._select(min(first, len(self.faces) - 1))
+        self._update_list_info()
+        self.status.config(text=t("status.deleted", n=len(gone)))
+        if failed:
+            messagebox.showwarning(APP_NAME, t("msg.delete_failed", names="\n".join(p.name for p in failed)))
+
+    def _rename(self) -> None:
+        """Ausgewähltes Bild umbenennen (z. B. in den Spielernamen)."""
+        face = self._current()
+        if not face or self._busy():
+            return
+        new = simpledialog.askstring(APP_NAME, t("dlg.rename"), parent=self, initialvalue=face.path.stem)
+        if not new or not new.strip() or new.strip() == face.path.stem:
+            return
+        old = face.path
+        try:
+            rename_face(face, new)
+        except RenameError as exc:
+            messagebox.showerror(APP_NAME, t("msg.rename_exists", name=str(exc)))
+            return
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, t("msg.rename_failed", e=exc))
+            return
+        for iid, p in self.players.items():
+            if p.image == old:
+                p.image = face.path
+                if self.tree.exists(iid):
+                    self.tree.set(iid, "status", "✓ " + face.path.name)
+        self._select(self.selected, keep_marks=True)
+        self.status.config(text=t("status.renamed", name=face.path.name))
+
+    def _on_key_delete(self, event) -> None:
+        if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
+                and str(self.right_nb.select()) == str(self.gallery_tab):
+            self._delete()
+
+    def _on_key_rename(self, event) -> None:
+        if str(self.right_nb.select()) == str(self.gallery_tab):
+            self._rename()
 
     def _reveal(self) -> None:
         face = self._current()
@@ -1299,6 +1616,10 @@ class App(tk.Tk):
         finally:
             if self.generator:
                 self.generator.cancel.set()
+            if self.forge.started_by_us:
+                self.status.config(text=t("forge.stopping"))
+                self.update_idletasks()
+                self.forge.stop()
             self.destroy()
 
 
@@ -1313,6 +1634,20 @@ def selftest() -> int:
     set_language("ko")
     ok = ok and t("btn.ok") == "확인" and country("Deutschland") == "독일" and resolve_country("Allemagne") == "Deutschland"
     set_language("de")
+    # Drag and Drop (tkdnd) muss in der .exe enthalten sein – nur prüfbar, wenn ein Fenster erzeugt werden kann
+    try:
+        root = tk.Tk()
+        root.withdraw()
+    except Exception:  # noqa: BLE001 – z. B. ohne Bildschirm
+        root = None
+    if root is not None:
+        try:
+            from tkinterdnd2 import TkinterDnD
+            TkinterDnD._require(root)
+        except Exception:  # noqa: BLE001
+            ok = False
+        finally:
+            root.destroy()
     return 0 if ok else 1
 
 

@@ -349,3 +349,44 @@ def parse_ages(text: str) -> list[int]:
         elif part.isdigit():
             ages.append(int(part))
     return sorted({a for a in ages if 14 <= a <= 45})
+
+
+# ---------------------------------------------------------------------------
+# Dateiverwaltung aus der Galerie: Papierkorb, Umbenennen
+# ---------------------------------------------------------------------------
+def trash_files(paths: list[Path]) -> list[Path]:
+    """Verschiebt Dateien in den Papierkorb. Gibt die Dateien zurück, bei denen das nicht ging."""
+    try:
+        from send2trash import send2trash
+    except Exception:  # noqa: BLE001
+        return [p for p in paths if p.exists()]
+    failed = []
+    for p in paths:
+        if not p.exists():
+            continue  # schon weg – nichts zu tun
+        try:
+            send2trash(str(p))
+        except Exception:  # noqa: BLE001
+            failed.append(p)
+    return failed
+
+
+class RenameError(Exception):
+    pass
+
+
+def rename_face(face: GeneratedFace, new_stem: str) -> Path:
+    """Benennt die Bilddatei um. Bilder, deren Infos nur in generiert.csv stehen, bekommen die Infos dabei
+    in die PNG geschrieben – sonst ginge nach dem Umbenennen die Zuordnung (und das Alterungs-Set) verloren."""
+    new_stem = safe_filename(new_stem.strip().removesuffix(".png").removesuffix(".PNG"))
+    target = face.path.with_name(new_stem + ".png")
+    if target == face.path:
+        return face.path
+    if target.exists():
+        raise RenameError(target.name)
+    if face.source == "log" and face.path.exists():
+        save_png(face.image, face.path, {META_KEY: face_info(face.prompt, face.options, legacy=True)})
+        face.source = "metadata"
+    face.path.rename(target)
+    face.path = target
+    return target

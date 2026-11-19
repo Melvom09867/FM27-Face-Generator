@@ -71,6 +71,21 @@ CLOTHING = {
     "Polo-Shirt": "a plain {color} polo shirt",
 }
 
+# Trikot-Muster: Schlüssel -> Art (None = einfarbig, Beschreibung wie bisher)
+SHIRT_PATTERNS = {
+    "Einfarbig": None,
+    "Längsstreifen": "stripes",
+    "Querstreifen": "hoops",
+    "Andersfarbige Ärmel": "sleeves",
+    "Andersfarbiger Kragen": "collar",
+}
+_GARMENT_NOUNS = {
+    "Schlichtes T-Shirt": "crew-neck t-shirt",
+    "Trainingsshirt": "sports training top",
+    "Trikot ohne Logo": "football jersey",
+    "Polo-Shirt": "polo shirt",
+}
+
 SHIRT_COLORS = {
     "Zufällig": None,
     "Weiß": "white",
@@ -149,6 +164,8 @@ class FaceOptions:
     expression: str = "Neutral (Passfoto)"
     clothing: str = "Trainingsshirt"
     shirt_color: str = "Zufällig"
+    shirt_color2: str = "Zufällig"   # Zweitfarbe (nur bei Mustern)
+    shirt_pattern: str = "Einfarbig"
     background: str = TRANSPARENT_BG
     skin_details: bool = True
     extra_prompt: str = ""
@@ -367,6 +384,23 @@ def build_prompt(opts: FaceOptions, seed: int | None = None, age: int | None = N
     if pers_expr:
         expression = pers_expr
     background = BACKGROUNDS.get(opts.background, BACKGROUNDS["Hellgrau (Studio)"])
+
+    # --- Trikot-Muster mit Zweitfarbe. Neue Zufallszahl erst NACH allen bisherigen ziehen und einfarbig
+    # exakt wie bisher beschreiben -> ältere Bilder bleiben beim Alterungs-Set reproduzierbar.
+    r_color2 = rng.random()
+    pattern = SHIRT_PATTERNS.get(opts.shirt_pattern)
+    if pattern:
+        others = [c for c in color_pool if c != color]
+        color2 = SHIRT_COLORS.get(opts.shirt_color2) or others[min(int(r_color2 * len(others)), len(others) - 1)]
+        noun = _GARMENT_NOUNS.get(opts.clothing, _GARMENT_NOUNS["Schlichtes T-Shirt"])
+        clothing = {
+            "stripes": f"a {color} and {color2} vertically striped {noun}",
+            "hoops": f"a {color} and {color2} horizontally hooped {noun}",
+            "sleeves": f"a {color} {noun} with contrasting {color2} sleeves",
+            "collar": f"a {color} {noun} with a contrasting {color2} collar",
+        }[pattern]
+        if opts.clothing == "Trikot ohne Logo":
+            clothing += ", no logos or text"
 
     who = ", ".join(x for x in (_age_phrase(age, gender), eth_text, origin) if x)
     # Kurz halten: Bild-KIs gewichten den Anfang stärker, lange Prompts "verwässern" Details

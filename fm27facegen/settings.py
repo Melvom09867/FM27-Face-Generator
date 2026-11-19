@@ -71,6 +71,11 @@ class AppSettings:
     list_name_mode: str = "Name"
     list_parent_mode: str = "Zufällig"
     aging_ages: str = "16, 20, 25, 30, 34"
+    club_presets: dict = field(default_factory=dict)
+    forge_dir: str = ""            # Ordner der Forge-Installation (enthält run.bat)
+    forge_autostart: bool = False  # Forge mit dem Generator starten und beenden
+    check_updates: bool = True     # beim Start nach neuer Version suchen
+    skip_version: str = ""         # genau diese Version nicht mehr melden (neuere schon)  # Vereins-Vorlagen: Name -> Kleidung/Farben/Muster
     language: str = "de"
     ask_language: bool = True  # Sprachauswahl beim Start zeigen
     version: int = 3  # Version der Einstellungen (für automatische Umstellung nach Updates)
@@ -101,7 +106,8 @@ def load(path: Path | None = None) -> AppSettings:
         process=_fill(ProcessOptions, raw.get("process")),
     )
     for k in ("output_dir", "pattern", "count", "delay", "subfolder_per_country", "overwrite",
-              "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language"):
+              "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language",
+              "club_presets", "forge_dir", "forge_autostart", "check_updates", "skip_version"):
         if k in raw:
             try:
                 setattr(s, k, type(getattr(s, k))(raw[k]))

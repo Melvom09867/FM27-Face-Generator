@@ -8,7 +8,8 @@ from fm27facegen.data import COUNTRIES, ETHNICITIES
 from fm27facegen.locales import ETHNICITY_NAMES, OPTIONS, PERSONALITY_NAMES, STRINGS
 from fm27facegen.personality import PERSONALITIES, STRENGTHS
 from fm27facegen.prompts import (AUTO, BACKGROUNDS, CLOTHING, EXPRESSIONS, FACIAL_HAIR, GENDERS, HAIR_COLORS,
-                                 HAIR_STYLES_FEMALE, HAIR_STYLES_MALE, PARENT_MODES, SHIRT_COLORS)
+                                 HAIR_STYLES_FEMALE, HAIR_STYLES_MALE, PARENT_MODES, SHIRT_COLORS,
+                                 SHIRT_PATTERNS)
 
 PH = re.compile(r"(?<!\{)\{([a-z_]+)\}(?!\})")
 
@@ -31,7 +32,7 @@ def test_all_options_translated():
         "expression": list(EXPRESSIONS), "clothing": list(CLOTHING),
         "shirt_color": [k for k in SHIRT_COLORS if k != "Zufällig"], "background": list(BACKGROUNDS),
         "gender": list(GENDERS), "parent_mode": list(PARENT_MODES), "strength": list(STRENGTHS),
-        "backend": list(BACKENDS),
+        "backend": list(BACKENDS), "shirt_pattern": list(SHIRT_PATTERNS),
     }
     for cat, keys in expected.items():
         for k in keys:

@@ -83,7 +83,12 @@ personalities also show the English FM name, e.g. "Mercenario (Mercenary)".
 
 ### Updates
 
-Download the new version (as above) and simply replace the old `FM27-FaceGenerator.exe`.
+When a new version is available, a notice appears at startup: **"Yes, please"** opens the download page,
+**"No, I want to play"** closes the window. With **"Don't show this version again"** exactly that version is no
+longer announced – but the next newer one is. (Turn off: **Output** tab → "Check for updates at startup".
+Only a request to GitHub is sent, no personal data.)
+
+Download the new version and simply replace the old `FM27-FaceGenerator.exe`.
 Your settings are kept (stored in `%APPDATA%\FM27FaceGenerator`).
 
 ### Uninstall
@@ -100,7 +105,20 @@ Delete the program folder. Optionally also delete `%APPDATA%\FM27FaceGenerator` 
 2. Optionally set details in the **Look** tab, e.g. a shirt in your club colours.
 3. Enter the **count** at the bottom and click **"Generate images"**.
 4. Don't like an image? Click it in the gallery → **"Re-roll"** (replaces the file).
-5. In the game, drag the matching PNG onto the player with FaceDrop.
+5. In the game, drag the matching PNG onto the player with FaceDrop – **straight from the gallery**
+   (drag the thumbnail or the large preview into the FM window) or from the folder as before.
+
+### Gallery: drag, rename, delete
+
+- **Drag**: hold the left mouse button and drag an image from the gallery into another program
+  (FM with FaceDrop, Explorer …). Several selected images are dragged together.
+  FM must run in **windowed mode**. If one program runs "as administrator" and the other doesn't,
+  Windows blocks dragging – then start both the same way.
+- **Select several**: **Ctrl + click** (add/remove) or **Shift + click** (range).
+- **Rename**: **"Rename (F2)"** button or the **F2** key – e.g. to the player's name. Ageing sets still work
+  afterwards (the info is stored inside the file).
+- **Delete**: **"Delete"** button or the **Del** key – after confirmation the images go to the **Recycle Bin**
+  (restorable).
 
 ### Dual heritage (parents from another country)
 
@@ -291,6 +309,18 @@ you don't need to change anything.
 Tip: running Football Manager and Forge at the same time works, but better generate images beforehand –
 both need video memory.
 
+### Start Forge automatically with the generator
+
+**AI** tab → click **"…"** next to **"Forge folder"** and choose Forge's main folder (where `run.bat` and
+`update.bat` are, e.g. `C:\AI\Forge`). Then tick **"Start and stop Forge with the generator"**.
+
+- From the next start on, Forge boots **invisibly in the background** (the bottom shows "Forge is starting …",
+  usually 30–90 seconds), without opening a browser window.
+- When you **close the generator**, Forge is shut down too – but only if the generator started it.
+  If Forge was already running, it stays on.
+- **"Start now"** starts Forge immediately without restarting the generator.
+- If something goes wrong, Forge's log is in `%APPDATA%\FM27FaceGenerator\forge.log`.
+
 ---
 
 ## Customising countries / distributions
@@ -318,6 +348,14 @@ Countries the program doesn't know still work – the AI then decides from the c
 
 - **Country fields**: type (e.g. `Port`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
 - **All other drop-downs**: click and type – jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
+- **Gallery**: **F2** = rename, **Del** = Recycle Bin, **Ctrl/Shift + click** = select several.
+
+## Shirt in club colours
+
+**Look** tab: choose **Clothing** (e.g. "Jersey without logo"), **Shirt colour**, **Pattern** (plain, vertical stripes,
+horizontal hoops, contrasting sleeves, contrasting collar) and **Second colour**.
+With **"Club preset → Save…"** the generator remembers the combination under a name (e.g. "My club") –
+later just pick it from the list.
 
 ## Tips for realistic results
 
