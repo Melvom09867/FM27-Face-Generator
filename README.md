@@ -98,6 +98,9 @@ Only a request to GitHub is sent, no personal data.)
 
 Manually: download the new version and simply replace the old `FM27-FaceGenerator.exe`.
 What changed is listed in `PatchNotes.txt`.
+
+**Test switch:** with **"Include test versions"** (**Output** tab, next to "Check for updates at startup") the
+update notice also offers test versions (pre-releases). Normally leave it off.
 Your settings are kept (stored in `%APPDATA%\FM27FaceGenerator`).
 
 ### Uninstall

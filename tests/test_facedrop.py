@@ -151,3 +151,21 @@ def test_settings_facedrop_fields(tmp_path):
     settings.save(s, p)
     s2 = settings.load(p)
     assert s2.facedrop_cleanup == "auto" and s2.facedrop_dir == "D:\\FM27\\facedrop"
+
+
+def test_update_with_prereleases(monkeypatch):
+    rels = [{"tag_name": "v1.8.0", "prerelease": False, "html_url": "a",
+             "assets": [{"name": "FM27-FaceGenerator-windows.zip", "browser_download_url": "z0"}]},
+            {"tag_name": "v1.8.4", "prerelease": True, "html_url": "b",
+             "assets": [{"name": "FM27-FaceGenerator-windows.zip", "browser_download_url": "z4"}]},
+            {"tag_name": "v1.9.0", "draft": True, "assets": [{"name": "x-windows.zip"}]}]
+
+    class R:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return rels
+
+    monkeypatch.setattr(update.requests, "get", lambda *a, **k: R())
+    assert update.check_latest(include_prereleases=True) == {"version": "1.8.4", "url": "b", "asset": "z4"}

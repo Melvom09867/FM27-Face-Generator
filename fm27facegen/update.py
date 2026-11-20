@@ -12,6 +12,7 @@ import requests
 
 REPO = "Melvom09867/FM27-Face-Generator"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
+ALL_URL = f"https://api.github.com/repos/{REPO}/releases?per_page=20"
 RELEASES_URL = f"https://github.com/{REPO}/releases/latest"
 
 
@@ -21,22 +22,34 @@ def parse_version(text: str) -> tuple[int, ...]:
     return tuple(int(n) for n in nums[:4])
 
 
-def check_latest(timeout: float = 5) -> dict | None:
-    """Neueste veröffentlichte Version oder None (offline, Fehler, Limit …)."""
+def _release_info(data: dict) -> dict | None:
+    version = str(data.get("tag_name", "")).lstrip("vV")
+    if data.get("draft") or not parse_version(version):
+        return None
+    asset = next((a.get("browser_download_url") for a in data.get("assets") or []
+                  if str(a.get("name", "")).lower().endswith("windows.zip")), None)
+    return {"version": version, "url": data.get("html_url") or RELEASES_URL, "asset": asset}
+
+
+def check_latest(timeout: float = 5, include_prereleases: bool = False) -> dict | None:
+    """Neueste veröffentlichte Version oder None (offline, Fehler, Limit …).
+
+    include_prereleases=True (Testschalter): auch Testversionen anbieten – dann zählt die höchste Versionsnummer."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "FM27-FaceGenerator"}
     try:
-        r = requests.get(API_URL, timeout=timeout,
-                         headers={"Accept": "application/vnd.github+json", "User-Agent": "FM27-FaceGenerator"})
+        if include_prereleases:
+            r = requests.get(ALL_URL, timeout=timeout, headers=headers)
+            if r.status_code != 200:
+                return None
+            infos = [i for i in (_release_info(d) for d in r.json() or []) if i and i["asset"]]
+            return max(infos, key=lambda i: parse_version(i["version"]), default=None)
+        r = requests.get(API_URL, timeout=timeout, headers=headers)
         if r.status_code != 200:
             return None
         data = r.json()
-        if data.get("draft") or data.get("prerelease"):
+        if data.get("prerelease"):
             return None
-        version = str(data.get("tag_name", "")).lstrip("vV")
-        if not parse_version(version):
-            return None
-        asset = next((a.get("browser_download_url") for a in data.get("assets") or []
-                      if str(a.get("name", "")).lower().endswith("windows.zip")), None)
-        return {"version": version, "url": data.get("html_url") or RELEASES_URL, "asset": asset}
+        return _release_info(data)
     except Exception:  # noqa: BLE001 – Update-Prüfung darf nie stören
         return None
 

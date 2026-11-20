@@ -90,6 +90,9 @@ Updates suchen“. Gesendet wird dabei nur eine Anfrage an GitHub, keine persön
 
 Von Hand: neue Version herunterladen und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
 Was sich geändert hat, steht in `PatchNotes_DE.txt`.
+
+**Testschalter:** Mit **„Auch Testversionen“** (Tab **Ausgabe**, neben „Beim Start nach Updates suchen“) meldet der
+Update-Hinweis auch Testversionen (Pre-Releases). Normalerweise ausgeschaltet lassen.
 Deine Einstellungen bleiben erhalten (gespeichert unter `%APPDATA%\FM27FaceGenerator`).
 
 ### Deinstallation

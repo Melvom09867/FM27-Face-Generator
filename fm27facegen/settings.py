@@ -90,6 +90,7 @@ class AppSettings:
     forge_dir: str = ""            # Ordner der Forge-Installation (enthält run.bat)
     forge_autostart: bool = False  # Forge mit dem Generator starten und beenden
     check_updates: bool = True     # beim Start nach neuer Version suchen
+    update_prereleases: bool = False  # Testschalter: auch Testversionen (Pre-Releases) anbieten
     skip_version: str = ""         # genau diese Version nicht mehr melden (neuere schon)  # Vereins-Vorlagen: Name -> Kleidung/Farben/Muster
     facedrop_dir: str = ""         # FaceDrop-Ordner von Hand gewählt (leer = automatisch erkennen)
     facedrop_cleanup: str = "ask"  # doppelte Bilder nach Übernahme durch FaceDrop: ask / auto / off
@@ -124,7 +125,7 @@ def load(path: Path | None = None) -> AppSettings:
     )
     for k in ("output_dir", "pattern", "count", "delay", "subfolder_per_country", "overwrite",
               "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language",
-              "club_presets", "forge_dir", "forge_autostart", "check_updates", "skip_version",
+              "club_presets", "forge_dir", "forge_autostart", "check_updates", "update_prereleases", "skip_version",
               "facedrop_dir", "facedrop_cleanup"):
         if k in raw:
             try:

@@ -19,6 +19,7 @@ STRINGS: dict[str, tuple[str, ...]] = {
     "upd.no": ("Nein, will zocken", "No, I want to play", "No, voglio giocare", "Non, je veux jouer", "No, quiero jugar", "Não, quero jogar", "いいえ、ゲームしたい", "아니요, 게임할래요"),
     "upd.skip": ("Diese Version nicht mehr anzeigen", "Don't show this version again", "Non mostrare più questa versione", "Ne plus afficher cette version", "No volver a mostrar esta versión", "Não mostrar mais esta versão", "このバージョンは今後表示しない", "이 버전은 다시 표시하지 않기"),
     "chk.updates": ("Beim Start nach Updates suchen", "Check for updates at startup", "Cerca aggiornamenti all'avvio", "Rechercher les mises à jour au démarrage", "Buscar actualizaciones al iniciar", "Procurar atualizações ao iniciar", "起動時にアップデートを確認", "시작할 때 업데이트 확인"),
+    "chk.prereleases": ('Auch Testversionen', 'Include test versions', 'Anche versioni di test', 'Versions de test aussi', 'También versiones de prueba', 'Também versões de teste', 'テスト版も含める', '테스트 버전도 포함'),
 
     # ------------------------------------------------------------------ 1.8.1: FaceDrop, Kopieren, Update
     'upd.now': ('Jetzt aktualisieren', 'Update now', 'Aggiorna ora', 'Mettre à jour', 'Actualizar ahora', 'Atualizar agora', '今すぐ更新', '지금 업데이트'),

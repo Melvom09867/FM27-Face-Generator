@@ -3,6 +3,12 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.3
+-------------
+- Testschalter "Auch Testversionen" (Tab Ausgabe): Der Update-Hinweis meldet dann auch Testversionen –
+  damit lässt sich "Jetzt aktualisieren" vor der nächsten offiziellen Version ausprobieren.
+
+
 Version 1.8.2
 -------------
 - "FM-Ordner suchen" schlägt jetzt den eindeutigeren Ordner ...\graphics\FM27 Face Generator vor.

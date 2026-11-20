@@ -283,7 +283,8 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.bind("<Delete>", self._on_key_delete)
         if self.cfg.check_updates:
-            threading.Thread(target=lambda: self.q.put(("update", 0, 0, None, check_latest(), "", None)),
+            threading.Thread(target=lambda: self.q.put(("update", 0, 0, None, check_latest(
+                include_prereleases=self.cfg.update_prereleases), "", None)),
                              daemon=True).start()
         if self.cfg.forge_autostart and self.cfg.forge_dir \
                 and self.cfg.backend.backend == StableDiffusionWebUIBackend.name:
@@ -436,7 +437,8 @@ class App(tk.Tk):
         for key in ("zoom", "face_y", "delay", "sd_cfg"):
             v[key] = tk.DoubleVar(self)
         v["forge_dir"] = tk.StringVar(self)
-        for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite", "forge_autostart", "check_updates"):
+        for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite", "forge_autostart", "check_updates",
+                    "update_prereleases"):
             v[key] = tk.BooleanVar(self)
 
         root = self.root_frame = ttk.Frame(self, padding=8)
@@ -610,8 +612,11 @@ class App(tk.Tk):
             row=9, column=0, columnspan=2, sticky="w", padx=8, pady=4)
         ttk.Label(t_, text=t("out.always"), style="Head.TLabel").grid(row=10, column=0, columnspan=2, sticky="w",
                                                                      padx=8, pady=8)
-        ttk.Checkbutton(t_, text=t("chk.updates"), variable=v["check_updates"]).grid(
-            row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 0))
+        upd = ttk.Frame(t_)
+        upd.grid(row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 0))
+        ttk.Checkbutton(upd, text=t("chk.updates"), variable=v["check_updates"]).pack(anchor="w")
+        ttk.Checkbutton(upd, text=t("chk.prereleases"), variable=v["update_prereleases"]).pack(anchor="w",
+                                                                                              pady=(2, 0))
         ttk.Label(t_, text="FaceDrop", style="Head.TLabel").grid(row=12, column=0, columnspan=2, sticky="w",
                                                                 padx=8, pady=(12, 0))
         self.fd_status = ttk.Label(t_, text=self._fd_status_text(), style="Hint.TLabel", wraplength=370,
@@ -1099,6 +1104,7 @@ class App(tk.Tk):
         v["forge_dir"].set(c.forge_dir)
         v["forge_autostart"].set(c.forge_autostart)
         v["check_updates"].set(c.check_updates)
+        v["update_prereleases"].set(c.update_prereleases)
         self._oset("facedrop_cleanup", c.facedrop_cleanup)
         v["pattern"].set(c.pattern)
         v["count"].set(c.count)
@@ -1158,6 +1164,7 @@ class App(tk.Tk):
         c.forge_dir = v["forge_dir"].get().strip()
         c.forge_autostart = bool(v["forge_autostart"].get())
         c.check_updates = bool(v["check_updates"].get())
+        c.update_prereleases = bool(v["update_prereleases"].get())
         c.facedrop_cleanup = self._oget("facedrop_cleanup", "ask")
         c.pattern = v["pattern"].get().strip()
         c.count = max(1, num("count", 5))
