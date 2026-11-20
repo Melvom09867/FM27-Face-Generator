@@ -3,6 +3,14 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.2
+-------------
+- "Find FM folder" now suggests the clearer folder ...\graphics\FM27 Face Generator.
+- Status bar at the bottom: the text is no longer cut off. It gets the free space (and wraps if needed), the
+  progress bar has a fixed width.
+- Removed the "x players still without a face" hint – the number from FaceDrop's file didn't match the game.
+
+
 Version 1.8.1
 -------------
 
@@ -16,7 +24,6 @@ FaceDrop
 - Your own images that are already in the game get a green check mark (✓ in the game).
 - Clean up duplicate images: once FaceDrop has taken over an image, your own copy can go to the Recycle Bin.
   Setting: Ask (default) / Clean up automatically / Off. Checked at startup and while running.
-- Shows how many players in the game still have no face.
 - Nothing in FaceDrop's folders is ever changed (read only) – rename, delete and re-roll are blocked there.
 
 Usage

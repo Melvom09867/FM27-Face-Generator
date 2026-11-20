@@ -293,9 +293,7 @@ class App(tk.Tk):
         self.bind("<Control-C>", self._on_key_copy)
         threading.Thread(target=self._fd_watch, daemon=True).start()
         if self.fd_info:
-            self.status.config(text=t("fd.found_short", v=self.fd_info.version or "?")
-                               + (" · " + t("fd.without", n=self.fd_info.without_face)
-                                  if self.fd_info.without_face else ""))
+            self.status.config(text=t("fd.found_short", v=self.fd_info.version or "?"))
         self.after(100, self._poll)
         if self.warnings:
             self.after(500, lambda: messagebox.showwarning(APP_NAME, "\n".join(self.warnings)))
@@ -872,8 +870,6 @@ class App(tk.Tk):
         self.career_cb = ttk.Combobox(src, textvariable=self.v["fd_career"], state="readonly", width=24)
         self.career_cb.bind("<<ComboboxSelected>>", lambda e: self._load_folder())
         self.career_lbl = ttk.Label(src, text=t("gal.career"))
-        self.fd_note = ttk.Label(src, text="", style="Hint.TLabel")
-        self.fd_note.pack(side="right")
         row2 = ttk.Frame(self.head_folder)
         row2.pack(fill="x")
         ttk.Label(row2, text=t("gal.search")).pack(side="left")
@@ -1014,17 +1010,19 @@ class App(tk.Tk):
 
         bottom = ttk.Frame(root)
         bottom.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        bottom.columnconfigure(4, weight=1)
+        bottom.columnconfigure(5, weight=1)
         ttk.Label(bottom, text=t("lbl.count")).grid(row=0, column=0)
         ttk.Spinbox(bottom, from_=1, to=500, textvariable=v["count"], width=6).grid(row=0, column=1, padx=(4, 12))
         self.go_btn = ttk.Button(bottom, text=t("btn.generate"), style="Big.TButton", command=self._start)
         self.go_btn.grid(row=0, column=2)
         self.stop_btn = ttk.Button(bottom, text=t("btn.cancel"), command=self._stop, state="disabled")
         self.stop_btn.grid(row=0, column=3, padx=8)
-        self.progress = ttk.Progressbar(bottom, mode="determinate")
-        self.progress.grid(row=0, column=4, sticky="ew", padx=8)
-        self.status = ttk.Label(bottom, text=t("status.ready"), width=62)
-        self.status.grid(row=0, column=5, sticky="e")
+        self.progress = ttk.Progressbar(bottom, mode="determinate", length=220)
+        self.progress.grid(row=0, column=4, padx=8)
+        # Text bekommt den restlichen Platz und bricht bei Bedarf um (nichts wird abgeschnitten)
+        self.status = ttk.Label(bottom, text=t("status.ready"), anchor="w", justify="left")
+        self.status.grid(row=0, column=5, sticky="ew")
+        self.status.bind("<Configure>", lambda e: self.status.configure(wraplength=max(e.width - 4, 100)))
 
     # ================================================================== Sprache
     def _change_language(self) -> None:
@@ -1299,7 +1297,7 @@ class App(tk.Tk):
             self._choose_dir()
             return
         fm = found[0]
-        target = fm / "graphics" / "FM27 Faces"
+        target = fm / "graphics" / "FM27 Face Generator"
         ans = messagebox.askyesnocancel(APP_NAME, t("msg.fm_found", fm=fm, target=target))
         if ans is None:
             return
@@ -1552,10 +1550,7 @@ class App(tk.Tk):
     def _fd_status_text(self) -> str:
         if not self.fd_info:
             return t("fd.none")
-        text = t("fd.found", v=self.fd_info.version or "?", path=self.fd_info.folder)
-        if self.fd_info.without_face:
-            text += "\n" + t("fd.without", n=self.fd_info.without_face)
-        return text
+        return t("fd.found", v=self.fd_info.version or "?", path=self.fd_info.folder)
 
     def _update_fd_widgets(self) -> None:
         if hasattr(self, "fd_status") and self.fd_status.winfo_exists():
@@ -1572,8 +1567,6 @@ class App(tk.Tk):
         else:
             self.career_lbl.pack_forget()
             self.career_cb.pack_forget()
-        n = self.fd_info.without_face if self.fd_info else 0
-        self.fd_note.config(text=t("fd.without", n=n) if fd and n else "")
 
     def _refresh_careers(self) -> None:
         """Karrieren aus FaceDrops Ordner (neueste zuerst) + 'Echte Spieler'."""

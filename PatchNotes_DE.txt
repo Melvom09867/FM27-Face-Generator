@@ -3,6 +3,14 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.2
+-------------
+- "FM-Ordner suchen" schlägt jetzt den eindeutigeren Ordner ...\graphics\FM27 Face Generator vor.
+- Statuszeile unten: Der Text wird nicht mehr abgeschnitten. Er bekommt den freien Platz (und bricht bei Bedarf
+  um), der Ladebalken hat eine feste Breite.
+- Hinweis "x Spieler noch ohne Gesicht" entfernt – die Zahl aus FaceDrops Datei passte nicht zum Spiel.
+
+
 Version 1.8.1
 -------------
 
@@ -16,7 +24,6 @@ FaceDrop
 - Eigene Bilder, die schon im Spiel sind, bekommen einen grünen Haken (✓ im Spiel).
 - Doppelte Bilder aufräumen: Hat FaceDrop ein Bild übernommen, kann die eigene Kopie in den Papierkorb.
   Einstellbar: Nachfragen (Standard) / Automatisch aufräumen / Aus. Geprüft wird beim Start und laufend.
-- Hinweis, wie viele Spieler im Spiel noch ohne Gesicht sind.
 - In FaceDrops Ordnern wird nie etwas verändert (nur gelesen) – Umbenennen, Löschen und Neu würfeln sind dort
   gesperrt.
 

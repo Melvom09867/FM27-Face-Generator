@@ -65,7 +65,7 @@ Unten im Fenster bei **„Speichern in:“**:
 
 - **„FM-Ordner suchen“** – findet automatisch `Dokumente\Sports Interactive\Football Manager …`
   (oder deinen eigenen FM-Benutzerordner, falls du ihn per Steam-Startoption `user_data_location="…"` verlegt hast)
-  und schlägt `…\graphics\FM27 Faces` vor (mit „Nein“ wählst du selbst einen Ordner innerhalb des FM-Verzeichnisses).
+  und schlägt `…\graphics\FM27 Face Generator` vor (mit „Nein“ wählst du selbst einen Ordner innerhalb des FM-Verzeichnisses).
 - **„Ordner wählen…“** – beliebigen Ordner auswählen.
 - **„Öffnen“** – öffnet den Ordner im Explorer.
 
@@ -156,14 +156,13 @@ einem Umzug), nimmt er den, den FaceDrop zuletzt benutzt hat. Anzeige und Einste
   je **Karriere** (Spielstand) oder „Echte Spieler“. Angezeigt wird auch die **Spieler-ID**. Diese Bilder lassen
   sich ansehen, kopieren, ziehen und für ein **Alterungs-Set** nutzen (die neuen Bilder landen im Speicherort),
   aber nicht umbenennen, löschen oder neu würfeln.
-- **✓ im Spiel**: Eigene Bilder, die FaceDrop schon übernommen hat, bekommen einen grünen Haken.
+- **✓ im Spiel**: Eigene Bilder, die FaceDrop schon übernommen hat, bekommen in der Galerie des Generators einen
+  grünen Haken (sichtbar, solange du deine Kopie behältst – also bei „Nein“ beim Aufräumen oder Einstellung „Aus“).
 - **Doppelte Bilder aufräumen**: Legst du ein Bild per FaceDrop auf einen Spieler, kopiert FaceDrop es in seinen
   Ordner – es liegt dann doppelt auf der Platte. Der Generator merkt das (beim Start und laufend) und fragt, ob
   **deine** Kopie in den Papierkorb soll. FaceDrops Kopie bleibt, im Spiel ändert sich nichts. Einstellbar unter
   **Ausgabe → FaceDrop → Doppelte Bilder**: *Nachfragen* (Standard), *Automatisch aufräumen* oder *Aus*.
   Angefasst werden nur Bilder, die der Generator selbst erstellt hat.
-- **Spieler ohne Gesicht**: Unten in der Statuszeile bzw. in der Galerie steht, wie viele Spieler im Spiel noch den
-  Standardkopf haben (laut FaceDrop).
 
 ### Doppelte Herkunft (Eltern aus einem anderen Land)
 

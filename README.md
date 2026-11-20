@@ -64,7 +64,7 @@ At the bottom of the window next to **"Save to:"**:
 
 - **"Find FM folder"** – automatically finds `Documents\Sports Interactive\Football Manager …`
   (or your own FM user data folder if you moved it with the Steam launch option `user_data_location="…"`)
-  and suggests `…\graphics\FM27 Faces` (choose "No" to pick a folder inside the FM directory yourself).
+  and suggests `…\graphics\FM27 Face Generator` (choose "No" to pick a folder inside the FM directory yourself).
 - **"Choose folder…"** – pick any folder.
 - **"Open"** – opens the folder in Explorer.
 
@@ -156,14 +156,13 @@ backup after moving), it takes the one FaceDrop used last. Status and settings: 
   per **career** (save game) or "Real players". The **player ID** is shown too. These images can be viewed,
   copied, dragged and used for an **ageing set** (the new images go to your save folder), but not renamed,
   deleted or re-rolled.
-- **✓ in the game**: your own images that FaceDrop has already taken over get a green check mark.
+- **✓ in the game**: your own images that FaceDrop has already taken over get a green check mark in the
+  generator's gallery (visible as long as you keep your copy – i.e. after "No" when cleaning up, or with "Off").
 - **Clean up duplicate images**: when you drop an image onto a player with FaceDrop, FaceDrop copies it into its
   folder – so it exists twice on disk. The generator notices this (at startup and while running) and asks whether
   **your** copy should go to the Recycle Bin. FaceDrop's copy stays, nothing changes in the game. Setting:
   **Output → FaceDrop → Duplicate images**: *Ask* (default), *Clean up automatically* or *Off*.
   Only images created by the generator itself are touched.
-- **Players without a face**: the status bar and the gallery show how many players in the game still have the
-  default head (according to FaceDrop).
 
 ### Dual heritage (parents from another country)
 
