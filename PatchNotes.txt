@@ -1,0 +1,53 @@
+FM27 Face Generator – Patch notes (English)
+==========================================
+(Deutsch: PatchNotes_DE.txt)
+
+
+Version 1.8.1
+-------------
+
+FaceDrop
+- FaceDrop is detected automatically (Output tab → FaceDrop), even if your FM user data folder lives
+  elsewhere via the Steam launch option user_data_location="…". If there are several FaceDrop folders, the one
+  FaceDrop used last is taken. The folder can also be chosen by hand.
+- Gallery: new switch "Show: Save folder | FaceDrop". With FaceDrop you see the images that are already in the
+  game – per career or "Real players", with player ID.
+- Ageing sets can be created from FaceDrop images (the new images go to your save folder).
+- Your own images that are already in the game get a green check mark (✓ in the game).
+- Clean up duplicate images: once FaceDrop has taken over an image, your own copy can go to the Recycle Bin.
+  Setting: Ask (default) / Clean up automatically / Off. Checked at startup and while running.
+- Shows how many players in the game still have no face.
+- Nothing in FaceDrop's folders is ever changed (read only) – rename, delete and re-roll are blocked there.
+
+Usage
+- New: "Copy (Ctrl+C)" – copies the image file like Explorer does. In FM hover over the portrait and press Ctrl+V.
+- "Find FM folder" now also finds an FM user data folder moved via the Steam launch option.
+
+Updates
+- Update notice with "Update now": downloads the new version, replaces the .exe and restarts.
+  "Open download page" is still available.
+- New in the package: PatchNotes.txt and PatchNotes_DE.txt.
+
+
+Version 1.8.0
+-------------
+
+Gallery
+- Two tabs: "Newly created" (images of this session) and "Gallery" (all images in the save folder, with search).
+- Newest images are always at the top.
+- Drag and drop: drag images straight from the gallery into FM (FaceDrop) or Explorer, several at once too.
+- Multi-select with Ctrl/Shift + click.
+- Delete (Del) moves to the Recycle Bin, rename with F2 – ageing sets keep working afterwards.
+
+Images
+- New default file name: Country_AgeJ_Personality_ID (e.g. Netherlands_16J_Very-Ambitious_2106529392.png).
+- Shirt: second colour, patterns (stripes, hoops, sash …) and club presets you can save.
+- Personality now sits in the Player tab and can be typed (typing filters, Enter confirms).
+
+Local Stable Diffusion (Forge)
+- Forge can start and stop automatically with the generator.
+- Real progress from Forge in the progress bar, otherwise it keeps moving smoothly.
+- Fixed the false "API is off" alarm while Forge was starting.
+
+Other
+- Update notice at startup ("Yes, please" / "No, I want to play", a single version can be hidden).

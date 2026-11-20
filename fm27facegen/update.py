@@ -34,7 +34,9 @@ def check_latest(timeout: float = 5) -> dict | None:
         version = str(data.get("tag_name", "")).lstrip("vV")
         if not parse_version(version):
             return None
-        return {"version": version, "url": data.get("html_url") or RELEASES_URL}
+        asset = next((a.get("browser_download_url") for a in data.get("assets") or []
+                      if str(a.get("name", "")).lower().endswith("windows.zip")), None)
+        return {"version": version, "url": data.get("html_url") or RELEASES_URL, "asset": asset}
     except Exception:  # noqa: BLE001 – Update-Prüfung darf nie stören
         return None
 

@@ -54,7 +54,22 @@ def find_fm_folders() -> list[Path]:
         year = max((n if n > 100 else 2000 + n for n in nums), default=0)
         return (year, p.stat().st_mtime)
 
-    return sorted(found, key=rank, reverse=True)
+    found.sort(key=rank, reverse=True)
+    # eigener Benutzerordner (Steam-Startoption user_data_location bzw. FaceDrop-Einstellung) zuerst
+    from . import facedrop
+    custom = [p for p in facedrop.facedrop_cfg_user_dirs() + facedrop.steam_user_data_locations() if p.is_dir()]
+    out: list[Path] = []
+    for p in custom + found:
+        if not any(_same(p, q) for q in out):
+            out.append(p)
+    return out
+
+
+def _same(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return str(a).lower() == str(b).lower()
 
 
 @dataclass
@@ -76,6 +91,8 @@ class AppSettings:
     forge_autostart: bool = False  # Forge mit dem Generator starten und beenden
     check_updates: bool = True     # beim Start nach neuer Version suchen
     skip_version: str = ""         # genau diese Version nicht mehr melden (neuere schon)  # Vereins-Vorlagen: Name -> Kleidung/Farben/Muster
+    facedrop_dir: str = ""         # FaceDrop-Ordner von Hand gewählt (leer = automatisch erkennen)
+    facedrop_cleanup: str = "ask"  # doppelte Bilder nach Übernahme durch FaceDrop: ask / auto / off
     language: str = "de"
     ask_language: bool = True  # Sprachauswahl beim Start zeigen
     version: int = 4  # Version der Einstellungen (für automatische Umstellung nach Updates)
@@ -107,12 +124,15 @@ def load(path: Path | None = None) -> AppSettings:
     )
     for k in ("output_dir", "pattern", "count", "delay", "subfolder_per_country", "overwrite",
               "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language",
-              "club_presets", "forge_dir", "forge_autostart", "check_updates", "skip_version"):
+              "club_presets", "forge_dir", "forge_autostart", "check_updates", "skip_version",
+              "facedrop_dir", "facedrop_cleanup"):
         if k in raw:
             try:
                 setattr(s, k, type(getattr(s, k))(raw[k]))
             except (TypeError, ValueError):
                 pass
+    if s.facedrop_cleanup not in ("ask", "auto", "off"):
+        s.facedrop_cleanup = "ask"
     if int(raw.get("version", 1) or 1) < 4:
         # v1.7.2: Standard-Dateiname um die Persönlichkeit erweitert (eigene Muster bleiben unverändert)
         from .generator import OLD_DEFAULT_PATTERNS

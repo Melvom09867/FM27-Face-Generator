@@ -64,6 +64,7 @@ Python oder andere Programme musst du **nicht** installieren.
 Unten im Fenster bei **„Speichern in:“**:
 
 - **„FM-Ordner suchen“** – findet automatisch `Dokumente\Sports Interactive\Football Manager …`
+  (oder deinen eigenen FM-Benutzerordner, falls du ihn per Steam-Startoption `user_data_location="…"` verlegt hast)
   und schlägt `…\graphics\FM27 Faces` vor (mit „Nein“ wählst du selbst einen Ordner innerhalb des FM-Verzeichnisses).
 - **„Ordner wählen…“** – beliebigen Ordner auswählen.
 - **„Öffnen“** – öffnet den Ordner im Explorer.
@@ -75,12 +76,20 @@ Der Speicherort und alle anderen Einstellungen werden automatisch gemerkt.
 
 ### Updates
 
-Gibt es eine neue Version, erscheint beim Start ein Hinweis: **„Ja, bitte“** öffnet die Download-Seite,
-**„Nein, will zocken“** schließt das Fenster. Mit **„Diese Version nicht mehr anzeigen“** wird genau diese
+Gibt es eine neue Version, erscheint beim Start ein Hinweis:
+
+- **„Jetzt aktualisieren“** lädt die neue Version herunter, tauscht die `FM27-FaceGenerator.exe` aus und startet
+  den Generator neu – fertig. (Geht nur, wenn der Programmordner beschreibbar ist, also z. B. nicht unter
+  `C:\Programme`. Dann fehlt der Button und es bleibt der Weg über die Download-Seite.)
+- **„Download-Seite öffnen“** öffnet die Seite im Browser.
+- **„Nein, will zocken“** schließt das Fenster.
+
+ Mit **„Diese Version nicht mehr anzeigen“** wird genau diese
 Version nicht mehr gemeldet – die nächste neuere aber wieder. (Ausschalten: Tab **Ausgabe** → „Beim Start nach
 Updates suchen“. Gesendet wird dabei nur eine Anfrage an GitHub, keine persönlichen Daten.)
 
-Neue Version herunterladen und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
+Von Hand: neue Version herunterladen und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
+Was sich geändert hat, steht in `PatchNotes_DE.txt`.
 Deine Einstellungen bleiben erhalten (gespeichert unter `%APPDATA%\FM27FaceGenerator`).
 
 ### Deinstallation
@@ -131,6 +140,30 @@ erkennst du die übrigen später am Namen wieder. Anpassbar im Tab **Ausgabe** �
   funktioniert danach weiter (die Infos stecken in der Datei).
 - **Löschen**: Button **„Löschen“** oder Taste **Entf** – nach Rückfrage landen die Bilder im **Papierkorb**
   (wiederherstellbar).
+- **Kopieren**: Button **„Kopieren (Strg+C)“** oder **Strg+C** – kopiert die Bilddatei wie im Explorer.
+  In FM dann Maus aufs Porträt und **Strg+V** (FaceDrop). Praktisch, wenn Ziehen nicht geht (z. B. Vollbild).
+
+### Zusammenarbeit mit FaceDrop
+
+Der Generator erkennt FaceDrop automatisch – auch wenn dein FM-Benutzerordner per Steam-Startoption
+(`user_data_location="…"`) woanders liegt. Gibt es mehrere FaceDrop-Ordner (z. B. alter Ort als Sicherung nach
+einem Umzug), nimmt er den, den FaceDrop zuletzt benutzt hat. Anzeige und Einstellungen: Tab **Ausgabe** → **FaceDrop**
+(„Ordner wählen …“ falls nötig, „Automatisch suchen“ setzt das zurück).
+
+> **Wichtig:** In FaceDrops Ordnern wird **nie etwas verändert** – dort wird nur gelesen.
+
+- **Galerie → Zeigen: Speicherort | FaceDrop**: Mit „FaceDrop“ siehst du die Bilder, die schon **im Spiel** sind –
+  je **Karriere** (Spielstand) oder „Echte Spieler“. Angezeigt wird auch die **Spieler-ID**. Diese Bilder lassen
+  sich ansehen, kopieren, ziehen und für ein **Alterungs-Set** nutzen (die neuen Bilder landen im Speicherort),
+  aber nicht umbenennen, löschen oder neu würfeln.
+- **✓ im Spiel**: Eigene Bilder, die FaceDrop schon übernommen hat, bekommen einen grünen Haken.
+- **Doppelte Bilder aufräumen**: Legst du ein Bild per FaceDrop auf einen Spieler, kopiert FaceDrop es in seinen
+  Ordner – es liegt dann doppelt auf der Platte. Der Generator merkt das (beim Start und laufend) und fragt, ob
+  **deine** Kopie in den Papierkorb soll. FaceDrops Kopie bleibt, im Spiel ändert sich nichts. Einstellbar unter
+  **Ausgabe → FaceDrop → Doppelte Bilder**: *Nachfragen* (Standard), *Automatisch aufräumen* oder *Aus*.
+  Angefasst werden nur Bilder, die der Generator selbst erstellt hat.
+- **Spieler ohne Gesicht**: Unten in der Statuszeile bzw. in der Galerie steht, wie viele Spieler im Spiel noch den
+  Standardkopf haben (laut FaceDrop).
 
 ### Doppelte Herkunft (Eltern aus einem anderen Land)
 
@@ -362,7 +395,7 @@ Länder, die das Programm nicht kennt, funktionieren trotzdem – dann entscheid
 
 - **Länder- und Persönlichkeitsfelder**: tippen (z. B. `Port` oder `söld`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
 - **Alle anderen Auswahlfelder**: anklicken und tippen – springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
-- **Galerie**: **F2** = umbenennen, **Entf** = in den Papierkorb, **Strg/Shift + Klick** = mehrere auswählen.
+- **Galerie**: **F2** = umbenennen, **Entf** = in den Papierkorb, **Strg+C** = Bild kopieren (in FM: Strg+V), **Strg/Shift + Klick** = mehrere auswählen.
 
 ## Trikot in Vereinsfarben
 

@@ -1,0 +1,54 @@
+FM27 Face Generator – PatchNotes (Deutsch)
+=========================================
+(English: PatchNotes.txt)
+
+
+Version 1.8.1
+-------------
+
+FaceDrop
+- FaceDrop wird automatisch erkannt (Tab Ausgabe → FaceDrop), auch wenn der FM-Benutzerordner per
+  Steam-Startoption user_data_location="…" woanders liegt. Bei mehreren FaceDrop-Ordnern wird der genommen,
+  den FaceDrop zuletzt benutzt hat. Ordner kann auch von Hand gewählt werden.
+- Galerie: neuer Schalter "Zeigen: Speicherort | FaceDrop". Mit FaceDrop siehst du die Bilder, die schon im
+  Spiel sind – je Karriere oder "Echte Spieler", mit Spieler-ID.
+- Aus FaceDrop-Bildern lässt sich ein Alterungs-Set erstellen (neue Bilder landen im Speicherort).
+- Eigene Bilder, die schon im Spiel sind, bekommen einen grünen Haken (✓ im Spiel).
+- Doppelte Bilder aufräumen: Hat FaceDrop ein Bild übernommen, kann die eigene Kopie in den Papierkorb.
+  Einstellbar: Nachfragen (Standard) / Automatisch aufräumen / Aus. Geprüft wird beim Start und laufend.
+- Hinweis, wie viele Spieler im Spiel noch ohne Gesicht sind.
+- In FaceDrops Ordnern wird nie etwas verändert (nur gelesen) – Umbenennen, Löschen und Neu würfeln sind dort
+  gesperrt.
+
+Bedienung
+- Neu: "Kopieren (Strg+C)" – kopiert die Bilddatei wie im Explorer. In FM Maus aufs Porträt und Strg+V.
+- "FM-Ordner suchen" findet jetzt auch einen per Steam-Startoption verlegten FM-Benutzerordner.
+
+Updates
+- Update-Hinweis mit "Jetzt aktualisieren": lädt die neue Version, tauscht die .exe aus und startet neu.
+  "Download-Seite öffnen" gibt es weiterhin.
+- Neu im Paket: PatchNotes_DE.txt und PatchNotes.txt.
+
+
+Version 1.8.0
+-------------
+
+Galerie
+- Zwei Tabs: "Neu erstellt" (Bilder dieser Sitzung) und "Galerie" (alle Bilder im Speicherort, mit Suche).
+- Neueste Bilder stehen immer oben.
+- Drag and Drop: Bilder direkt aus der Galerie in FM (FaceDrop) oder in den Explorer ziehen, auch mehrere.
+- Mehrfachauswahl mit Strg/Shift + Klick.
+- Löschen (Entf) verschiebt in den Papierkorb, Umbenennen mit F2 – Alterungs-Sets funktionieren danach weiter.
+
+Bilder
+- Neuer Standard-Dateiname: Land_AlterJ_Persönlichkeit_ID (z. B. Niederlande_16J_Sehr-ehrgeizig_2106529392.png).
+- Trikot: Zweitfarbe, Muster (Streifen, Ringel, Schärpe …) und Vereins-Vorlagen zum Speichern.
+- Persönlichkeit sitzt jetzt im Tab Spieler und kann eingetippt werden (Tippen filtert, Enter übernimmt).
+
+Lokales Stable Diffusion (Forge)
+- Forge kann automatisch mit dem Generator starten und beenden.
+- Echter Fortschritt aus Forge im Ladebalken, sonst läuft er gleichmäßig weiter.
+- Fehlalarm "API ist aus" beim Start von Forge behoben.
+
+Sonstiges
+- Update-Hinweis beim Start ("Ja, bitte" / "Nein, will zocken", einzelne Version ausblendbar).

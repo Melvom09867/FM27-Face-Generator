@@ -20,6 +20,8 @@ from typing import Callable
 from PIL import Image, ImageTk
 
 from . import APP_NAME, __version__
+from . import facedrop
+from . import selfupdate, winclip
 from . import settings as settings_mod
 from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWebUIBackend, check_sd_webui
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
@@ -59,6 +61,20 @@ def _on_checker(img: Image.Image, size: int) -> Image.Image:
     bg = _checker(size, max(4, size // 25)).convert("RGBA")
     bg.alpha_composite(img)
     return bg.convert("RGB")
+
+
+def _ingame_badge(img: Image.Image) -> Image.Image:
+    """Kleiner grüner Haken unten rechts: Bild ist schon über FaceDrop im Spiel."""
+    from PIL import ImageDraw
+    img = img.convert("RGB").copy()
+    d = ImageDraw.Draw(img)
+    w, h = img.size
+    r = max(9, w // 9)
+    cx, cy = w - r - 4, h - r - 4
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(34, 160, 70), outline=(255, 255, 255), width=2)
+    d.line((cx - r * 0.5, cy, cx - r * 0.1, cy + r * 0.45, cx + r * 0.55, cy - r * 0.4), fill=(255, 255, 255),
+           width=max(2, r // 4))
+    return img
 
 
 def open_path(path: Path) -> None:
@@ -166,14 +182,15 @@ class LanguageDialog(tk.Toplevel):
 
 
 class UpdateDialog(tk.Toplevel):
-    """Hinweis auf neue Version: 'Ja, bitte' öffnet die Download-Seite, 'Nein, will zocken' schließt."""
+    """Hinweis auf neue Version: 'Jetzt aktualisieren' (tauscht die .exe selbst aus), 'Download-Seite öffnen'
+    oder 'Nein, will zocken'."""
 
-    def __init__(self, master, current: str, latest: str):
+    def __init__(self, master, current: str, latest: str, can_update: bool = False):
         super().__init__(master)
         self.title(t("upd.title"))
         self.resizable(False, False)
         self.transient(master)
-        self.open_page = False
+        self.choice: str | None = None  # "now", "page" oder None
         self.skip = tk.BooleanVar(self, False)
         frm = ttk.Frame(self, padding=16)
         frm.pack(fill="both", expand=True)
@@ -183,18 +200,25 @@ class UpdateDialog(tk.Toplevel):
         btns = ttk.Frame(frm)
         btns.pack(fill="x", pady=(14, 0))
         ttk.Button(btns, text=t("upd.no"), command=self.destroy).pack(side="right")
-        yes = ttk.Button(btns, text=t("upd.yes"), command=self._yes)
-        yes.pack(side="right", padx=(0, 8))
-        yes.focus_set()
-        self.bind("<Return>", lambda e: self._yes())
+        page = ttk.Button(btns, text=t("upd.page"), command=lambda: self._yes("page"))
+        page.pack(side="right", padx=(0, 8))
+        default = "page"
+        if can_update:
+            now = ttk.Button(btns, text=t("upd.now"), command=lambda: self._yes("now"))
+            now.pack(side="right", padx=(0, 8))
+            now.focus_set()
+            default = "now"
+        else:
+            page.focus_set()
+        self.bind("<Return>", lambda e: self._yes(default))
         self.bind("<Escape>", lambda e: self.destroy())
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() - self.winfo_reqwidth()) // 2
         y = master.winfo_rooty() + (master.winfo_height() - self.winfo_reqheight()) // 3
         self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
 
-    def _yes(self) -> None:
-        self.open_page = True
+    def _yes(self, choice: str) -> None:
+        self.choice = choice
         self.destroy()
 
 
@@ -244,6 +268,16 @@ class App(tk.Tk):
 
         self.dnd = self._init_dnd()
         self.forge = ForgeManager(settings_mod.config_dir() / "forge.log")
+        # FaceDrop (nur lesen): erkannter Ordner, Inhalt (Hash -> Datei) für "✓ im Spiel" und Aufräumen
+        self.gal_src = "own"           # Galerie-Tab zeigt: "own" = Speicherort, "fd" = FaceDrop
+        self.fd_dir: Path | None = None
+        self.fd_info: facedrop.FaceDropInfo | None = None
+        self.fd_index: dict[str, Path] = {}
+        self.fd_sizes: set[int] = set()
+        self.fd_declined: set[Path] = set()  # "Nein" beim Aufräumen – in dieser Sitzung nicht mehr fragen
+        self.fd_asking = False
+        self.fd_stop = threading.Event()
+        self._detect_facedrop()
         self._build()
         self._load_into_ui()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -255,6 +289,13 @@ class App(tk.Tk):
                 and self.cfg.backend.backend == StableDiffusionWebUIBackend.name:
             self.after(800, lambda: self._forge_start(True))
         self.bind("<F2>", self._on_key_rename)
+        self.bind("<Control-c>", self._on_key_copy)
+        self.bind("<Control-C>", self._on_key_copy)
+        threading.Thread(target=self._fd_watch, daemon=True).start()
+        if self.fd_info:
+            self.status.config(text=t("fd.found_short", v=self.fd_info.version or "?")
+                               + (" · " + t("fd.without", n=self.fd_info.without_face)
+                                  if self.fd_info.without_face else ""))
         self.after(100, self._poll)
         if self.warnings:
             self.after(500, lambda: messagebox.showwarning(APP_NAME, "\n".join(self.warnings)))
@@ -389,7 +430,8 @@ class App(tk.Tk):
                     "shirt_color2", "shirt_pattern", "club_preset",
                     "output_dir", "pattern", "backend", "pollinations_url", "pollinations_model",
                     "pollinations_token", "sd_url", "list_name_mode", "list_parent_mode", "aging_ages",
-                    "list_country", "list_country2", "personality", "personality_strength", "list_personality"):
+                    "list_country", "list_country2", "personality", "personality_strength", "list_personality",
+                    "facedrop_cleanup", "gal_source", "fd_career"):
             v[key] = tk.StringVar(self)
         for key in ("age_min", "age_max", "count", "gen_size", "sd_steps", "tattoo_min_age"):
             v[key] = tk.IntVar(self)
@@ -572,6 +614,19 @@ class App(tk.Tk):
                                                                      padx=8, pady=8)
         ttk.Checkbutton(t_, text=t("chk.updates"), variable=v["check_updates"]).grid(
             row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 0))
+        ttk.Label(t_, text="FaceDrop", style="Head.TLabel").grid(row=12, column=0, columnspan=2, sticky="w",
+                                                                padx=8, pady=(12, 0))
+        self.fd_status = ttk.Label(t_, text=self._fd_status_text(), style="Hint.TLabel", wraplength=370,
+                                   justify="left")
+        self.fd_status.grid(row=13, column=0, columnspan=2, sticky="w", padx=8)
+        fb = ttk.Frame(t_)
+        fb.grid(row=14, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 0))
+        ttk.Button(fb, text=t("btn.fd_choose"), command=self._choose_facedrop).pack(side="left")
+        ttk.Button(fb, text=t("btn.fd_auto"), command=self._auto_facedrop).pack(side="left", padx=(4, 0))
+        self._row(t_, 15, t("lbl.fd_cleanup"),
+                  self._ocombo(t_, "facedrop_cleanup", ["ask", "auto", "off"], {"ask": t("fd.clean_ask"), "auto": t("fd.clean_auto"),
+                                                                    "off": t("fd.clean_off")}.get,
+                               width=24), t("hint.fd_cleanup"))
 
     # ------------------------------------------------------------------ Tab: KI
     def _build_tab_ai(self, nb) -> None:
@@ -622,15 +677,81 @@ class App(tk.Tk):
 
     # ---- Update-Hinweis
     def _show_update(self, info: dict) -> None:
-        dlg = UpdateDialog(self, __version__, info["version"])
+        can = bool(info.get("asset")) and selfupdate.can_self_update()
+        dlg = UpdateDialog(self, __version__, info["version"], can_update=can)
         dlg.grab_set()
         self.wait_window(dlg)
         if dlg.skip.get():
             self.cfg.skip_version = info["version"]
             settings_mod.save(self.cfg)
-        if dlg.open_page:
+        if dlg.choice == "page":
             import webbrowser
             webbrowser.open(info["url"])
+        elif dlg.choice == "now":
+            self._self_update(info)
+
+    def _self_update(self, info: dict) -> None:
+        """Neue Version laden, .exe austauschen lassen und neu starten."""
+        if self._busy():
+            messagebox.showinfo(APP_NAME, t("msg.busy"))
+            return
+        win = tk.Toplevel(self)
+        win.title(t("upd.title"))
+        win.resizable(False, False)
+        win.transient(self)
+        frm = ttk.Frame(win, padding=16)
+        frm.pack(fill="both", expand=True)
+        lbl = ttk.Label(frm, text=t("upd.downloading", v=info["version"]))
+        lbl.pack(anchor="w")
+        bar = ttk.Progressbar(frm, mode="determinate", length=360, maximum=100)
+        bar.pack(fill="x", pady=(8, 8))
+        cancel = threading.Event()
+        ttk.Button(frm, text=t("btn.cancel"), command=cancel.set).pack(anchor="e")
+        win.protocol("WM_DELETE_WINDOW", cancel.set)
+        win.grab_set()
+        exe = selfupdate.exe_path()
+
+        def finish(error: str | None, new_exe: Path | None) -> None:
+            if win.winfo_exists():
+                win.destroy()
+            if cancel.is_set():
+                return
+            if error or not new_exe:
+                if messagebox.askyesno(APP_NAME, t("upd.failed", e=error or "?")):
+                    import webbrowser
+                    webbrowser.open(info["url"])
+                return
+            try:
+                selfupdate.launch_swap(new_exe)
+            except Exception as exc:  # noqa: BLE001
+                messagebox.showerror(APP_NAME, t("upd.failed", e=exc))
+                return
+            self.status.config(text=t("upd.restarting"))
+            self.update_idletasks()
+            self._on_close()
+
+        def work():
+            import tempfile
+            zpath = Path(tempfile.gettempdir()) / f"FM27-FaceGenerator-{info['version']}.zip"
+            try:
+                selfupdate.download(info["asset"], zpath,
+                                    progress=lambda f: self.after(0, lambda: bar.winfo_exists() and bar.configure(
+                                        value=f * 100)),
+                                    cancelled=cancel.is_set)
+                new_exe = selfupdate.unpack(zpath, exe.parent, exe.name)
+                self.after(0, lambda: finish(None, new_exe))
+            except InterruptedError:
+                self.after(0, lambda: finish(None, None))
+            except Exception as exc:  # noqa: BLE001
+                err = str(exc)
+                self.after(0, lambda: finish(err, None))
+            finally:
+                try:
+                    zpath.unlink()
+                except OSError:
+                    pass
+
+        threading.Thread(target=work, daemon=True).start()
 
     # ---- Forge automatisch starten/beenden
     def _forge_status_text(self) -> str:
@@ -739,14 +860,31 @@ class App(tk.Tk):
                   justify="left").pack(side="left")
         ttk.Button(self.head_new, text=t("btn.load_images"), command=self._load_images).pack(side="right")
         self.head_folder = ttk.Frame(head)
-        ttk.Label(self.head_folder, text=t("gal.search")).pack(side="left")
+        src = ttk.Frame(self.head_folder)
+        src.pack(fill="x", pady=(0, 4))
+        ttk.Label(src, text=t("gal.source")).pack(side="left")
+        self.v["gal_source"].set(self.gal_src)
+        ttk.Radiobutton(src, text=t("gal.src_own"), value="own", variable=self.v["gal_source"],
+                        command=self._on_gal_source).pack(side="left", padx=(6, 0))
+        self.fd_radio = ttk.Radiobutton(src, text="FaceDrop", value="fd", variable=self.v["gal_source"],
+                                        command=self._on_gal_source)
+        self.fd_radio.pack(side="left", padx=(6, 0))
+        self.career_cb = ttk.Combobox(src, textvariable=self.v["fd_career"], state="readonly", width=24)
+        self.career_cb.bind("<<ComboboxSelected>>", lambda e: self._load_folder())
+        self.career_lbl = ttk.Label(src, text=t("gal.career"))
+        self.fd_note = ttk.Label(src, text="", style="Hint.TLabel")
+        self.fd_note.pack(side="right")
+        row2 = ttk.Frame(self.head_folder)
+        row2.pack(fill="x")
+        ttk.Label(row2, text=t("gal.search")).pack(side="left")
         self.v["folder_filter"] = tk.StringVar(self)
-        search = ttk.Entry(self.head_folder, textvariable=self.v["folder_filter"], width=22)
+        search = ttk.Entry(row2, textvariable=self.v["folder_filter"], width=22)
         search.pack(side="left", padx=(4, 8))
         self.v["folder_filter"].trace_add("write", lambda *a: self._apply_folder_filter())
-        ttk.Button(self.head_folder, text=t("btn.refresh"), command=self._load_folder).pack(side="left")
-        self.folder_info = ttk.Label(self.head_folder, text="", style="Hint.TLabel")
+        ttk.Button(row2, text=t("btn.refresh"), command=self._load_folder).pack(side="left")
+        self.folder_info = ttk.Label(row2, text="", style="Hint.TLabel")
         self.folder_info.pack(side="left", padx=(10, 0))
+        self._update_fd_widgets()
         nb.bind("<<NotebookTabChanged>>", lambda e: self._on_right_tab())
         gal = ttk.Frame(tab, relief="sunken", borderwidth=1)
         gal.grid(row=1, column=0, sticky="nsew")
@@ -780,8 +918,8 @@ class App(tk.Tk):
         btns.pack(fill="x")
         btns.columnconfigure((0, 1), weight=1)
         for n, (text, cmd) in enumerate(((t("btn.reroll"), self._reroll), (t("btn.rename"), self._rename),
-                                         (t("btn.reveal"), self._reveal), (t("btn.copy_prompt"), self._copy_prompt),
-                                         (t("btn.delete"), self._delete))):
+                                         (t("btn.copy_file"), self._copy_files), (t("btn.reveal"), self._reveal),
+                                         (t("btn.copy_prompt"), self._copy_prompt), (t("btn.delete"), self._delete))):
             ttk.Button(btns, text=text, command=cmd).grid(row=n // 2, column=n % 2, sticky="ew", padx=1, pady=1)
 
         aging = ttk.Frame(tab)
@@ -963,6 +1101,7 @@ class App(tk.Tk):
         v["forge_dir"].set(c.forge_dir)
         v["forge_autostart"].set(c.forge_autostart)
         v["check_updates"].set(c.check_updates)
+        self._oset("facedrop_cleanup", c.facedrop_cleanup)
         v["pattern"].set(c.pattern)
         v["count"].set(c.count)
         v["delay"].set(c.delay)
@@ -1021,6 +1160,7 @@ class App(tk.Tk):
         c.forge_dir = v["forge_dir"].get().strip()
         c.forge_autostart = bool(v["forge_autostart"].get())
         c.check_updates = bool(v["check_updates"].get())
+        c.facedrop_cleanup = self._oget("facedrop_cleanup", "ask")
         c.pattern = v["pattern"].get().strip()
         c.count = max(1, num("count", 5))
         c.delay = max(0.0, num("delay", 3.0, float))
@@ -1264,6 +1404,12 @@ class App(tk.Tk):
                     if payload and should_notify(__version__, payload["version"], self.cfg.skip_version):
                         self._show_update(payload)
                     continue
+                if kind == "fdindex":
+                    self._fd_index_update(payload)
+                    continue
+                if kind == "dups":
+                    self._handle_dups(payload)
+                    continue
                 if kind == "forge":
                     if hasattr(self, "forge_status") and self.forge_status.winfo_exists():
                         self.forge_status.config(text=payload)
@@ -1382,30 +1528,224 @@ class App(tk.Tk):
             self._rebuild_gallery()
             self._select(self.selected if self.selected is not None else -1, keep_marks=True)
         if mode == "folder":
-            current_dir = self.v["output_dir"].get().strip() or self.cfg.output_dir
+            current_dir = self._folder_key(self.v["output_dir"].get().strip() or self.cfg.output_dir)
             if self.folder_dirty or current_dir != self.folder_loaded_dir:
                 self._load_folder()
             elif not self.folder_info.cget("text"):  # z. B. nach Sprachwechsel neu aufgebaut
                 n = len(self.gal["folder"].all_faces)
                 self.folder_info.config(text=t("gal.count", n=n) if n else t("gal.empty"))
 
+    # ================================================================== FaceDrop (nur lesen)
+    def _detect_facedrop(self) -> None:
+        manual = Path(self.cfg.facedrop_dir) if self.cfg.facedrop_dir else None
+        d = manual if manual and manual.is_dir() else None
+        if d is None:
+            try:
+                d = facedrop.find_facedrop_dir()
+            except Exception:  # noqa: BLE001 – Erkennung darf nie stören
+                d = None
+        self.fd_dir = d
+        self.fd_info = facedrop.read_info(d) if d else None
+        if d is None and self.gal_src == "fd":
+            self.gal_src = "own"
+
+    def _fd_status_text(self) -> str:
+        if not self.fd_info:
+            return t("fd.none")
+        text = t("fd.found", v=self.fd_info.version or "?", path=self.fd_info.folder)
+        if self.fd_info.without_face:
+            text += "\n" + t("fd.without", n=self.fd_info.without_face)
+        return text
+
+    def _update_fd_widgets(self) -> None:
+        if hasattr(self, "fd_status") and self.fd_status.winfo_exists():
+            self.fd_status.config(text=self._fd_status_text())
+        if not hasattr(self, "fd_radio"):
+            return
+        self.fd_radio.configure(state="normal" if self.fd_dir else "disabled")
+        self.v["gal_source"].set(self.gal_src)
+        fd = self.gal_src == "fd"
+        if fd:
+            self._refresh_careers()
+            self.career_lbl.pack(side="left", padx=(12, 4))
+            self.career_cb.pack(side="left")
+        else:
+            self.career_lbl.pack_forget()
+            self.career_cb.pack_forget()
+        n = self.fd_info.without_face if self.fd_info else 0
+        self.fd_note.config(text=t("fd.without", n=n) if fd and n else "")
+
+    def _refresh_careers(self) -> None:
+        """Karrieren aus FaceDrops Ordner (neueste zuerst) + 'Echte Spieler'."""
+        if not self.fd_dir:
+            return
+        self.fd_info = facedrop.read_info(self.fd_dir)
+        kdir = self.fd_dir / "karrieren"
+
+        def mtime(key: str) -> float:
+            try:
+                return (kdir / key).stat().st_mtime
+            except OSError:
+                return 0.0
+
+        keys = sorted(self.fd_info.careers, key=mtime, reverse=True)
+        self.career_map = {self.fd_info.careers[k]: k for k in keys}
+        self.career_map[t("fd.real")] = ""
+        labels = list(self.career_map)
+        self.career_cb["values"] = labels
+        if self.v["fd_career"].get() not in self.career_map:
+            self.v["fd_career"].set(labels[0])
+
+    def _career_key(self) -> str:
+        return getattr(self, "career_map", {}).get(self.v["fd_career"].get(), "")
+
+    def _on_gal_source(self) -> None:
+        self.gal_src = self.v["gal_source"].get() if self.fd_dir else "own"
+        self._update_fd_widgets()
+        self._load_folder()
+
+    def _choose_facedrop(self) -> None:
+        d = filedialog.askdirectory(title=t("dlg.fd_dir"), initialdir=str(self.fd_dir or Path.home()))
+        if not d:
+            return
+        d = Path(d)
+        if d.name.casefold() != "facedrop" and (d / "facedrop").is_dir():
+            d = d / "facedrop"  # FM-Benutzerordner gewählt
+        if not ((d / "karrieren").is_dir() or (d / "startschutz.txt").exists()):
+            if not messagebox.askyesno(APP_NAME, t("msg.fd_not_facedrop", folder=d)):
+                return
+        self.cfg.facedrop_dir = str(d)
+        self._fd_changed()
+
+    def _auto_facedrop(self) -> None:
+        self.cfg.facedrop_dir = ""
+        self._fd_changed()
+        if not self.fd_dir:
+            messagebox.showinfo(APP_NAME, t("fd.none"))
+
+    def _fd_changed(self) -> None:
+        settings_mod.save(self.cfg)
+        self.fd_index, self.fd_sizes = {}, set()
+        self._detect_facedrop()
+        self._update_fd_widgets()
+        self.folder_dirty = True
+        if self.gmode == "folder":
+            self._load_folder()
+
+    def _in_game(self, face: GeneratedFace) -> bool:
+        """Liegt dieses Bild (als identische Kopie) schon bei FaceDrop, ist also im Spiel?"""
+        if facedrop.is_facedrop_path(face.path):
+            return True
+        if not self.fd_index:
+            return False
+        try:
+            return face.path.stat().st_size in self.fd_sizes and facedrop.file_hash(face.path) in self.fd_index
+        except OSError:
+            return False
+
+    def _fd_watch(self) -> None:
+        """Hintergrund: FaceDrops Ordner beobachten (beim Start und dann alle paar Sekunden)."""
+        wait = 2.0
+        while not self.fd_stop.wait(wait):
+            wait = 6.0
+            fd = self.fd_dir
+            if not fd:
+                continue
+            try:
+                index = facedrop.facedrop_index(fd)
+                self.q.put(("fdindex", 0, 0, None, index, "", None))
+                if self.cfg.facedrop_cleanup != "off" and not self.fd_asking:
+                    own = list_folder_images(self.cfg.output_dir, 20000)
+                    dups = {k: v for k, v in facedrop.find_duplicates(own, index).items()
+                            if k not in self.fd_declined}
+                    if dups:
+                        self.q.put(("dups", 0, 0, None, dups, "", None))
+            except Exception:  # noqa: BLE001 – nie stören
+                pass
+
+    def _fd_index_update(self, index: dict[str, Path]) -> None:
+        if set(index) == set(self.fd_index):
+            return
+        self.fd_index = index
+        sizes = set()
+        for p in index.values():
+            try:
+                sizes.add(p.stat().st_size)
+            except OSError:
+                pass
+        self.fd_sizes = sizes
+        if self.gmode == "new" or self.gal_src == "own":
+            sel = self.selected
+            self._rebuild_gallery()
+            self._select(sel if sel is not None else -1, keep_marks=True)
+
+    def _handle_dups(self, dups: dict[Path, Path]) -> None:
+        """Eigene Bilder, die FaceDrop schon (identisch) übernommen hat: nach Rückfrage in den Papierkorb."""
+        dups = {k: v for k, v in dups.items() if k.exists() and v.exists() and k not in self.fd_declined}
+        if not dups or self.fd_asking or self.cfg.facedrop_cleanup == "off":
+            return
+        if self.cfg.facedrop_cleanup == "ask":
+            names = "\n".join(f"{k.name}  →  {v.parent.name}\\{v.name}" for k, v in list(dups.items())[:8])
+            if len(dups) > 8:
+                names += "\n…"
+            self.fd_asking = True
+            try:
+                ok = messagebox.askyesno(APP_NAME, t("msg.fd_dups", n=len(dups), names=names))
+            finally:
+                self.fd_asking = False
+            if not ok:
+                self.fd_declined |= set(dups)
+                return
+        failed = set(trash_files(list(dups)))
+        moved = {k: v for k, v in dups.items() if k not in failed}
+        if not moved:
+            return
+        for st in self.gal.values():  # Galerie zeigt ab jetzt FaceDrops Kopie (Alterungs-Set geht weiter)
+            for f in st.faces + st.all_faces:
+                if f.path in moved:
+                    f.path = moved[f.path]
+        for iid, pl in self.players.items():
+            if pl.image in moved:
+                pl.image = moved[pl.image]
+        if self.gal_src == "own":
+            st = self.gal["folder"]
+            st.faces = [f for f in st.faces if not facedrop.is_facedrop_path(f.path)]
+            st.all_faces = [f for f in st.all_faces if not facedrop.is_facedrop_path(f.path)]
+            if self.gmode == "folder":
+                st.selected, st.marked = None, set()
+        self._rebuild_gallery()
+        self._select(self.selected if self.selected is not None and self.selected < len(self.faces) else
+                     (0 if self.faces else -1), keep_marks=False)
+        self.status.config(text=t("status.fd_cleaned", n=len(moved)))
+
     # ---- Ordner-Galerie: alle Bilder im Speicherort
+    def _folder_key(self, base: str) -> str:
+        return f"{self.gal_src}|{self._career_key()}|{base}"
+
     def _load_folder(self) -> None:
         self._read_from_ui()
         base = self.cfg.output_dir
+        use_fd = self.gal_src == "fd" and self.fd_dir is not None
+        if use_fd:
+            self._refresh_careers()
+        career = self._career_key()
+        fd_dir = self.fd_dir
         self.folder_load_id += 1
         lid = self.folder_load_id
         st = self.gal["folder"]
         st.faces, st.all_faces, st.selected, st.marked = [], [], None, set()
-        self.folder_dirty, self.folder_loaded_dir = False, base
+        self.folder_dirty, self.folder_loaded_dir = False, self._folder_key(base)
         if self.gmode == "folder":
             self._rebuild_gallery()
             self._select(-1)
-        self.folder_info.config(text=t("gal.loading"))
+        self.folder_info.config(text=t("gal.loading_fd") if use_fd else t("gal.loading"))
         fallback = copy.deepcopy(self.cfg.face)
 
         def work():
-            files = list_folder_images(base, FOLDER_MAX + 1)
+            if use_fd:
+                files = facedrop.career_images(fd_dir, career or None)[:FOLDER_MAX + 1]
+            else:
+                files = list_folder_images(base, FOLDER_MAX + 1)
             total = len(files)
             batch: list[GeneratedFace] = []
             for p in files[:FOLDER_MAX]:
@@ -1435,13 +1775,14 @@ class App(tk.Tk):
             if st.selected is None:
                 self._select(0)
         n = len(st.all_faces)
+        fd = self.gal_src == "fd"
         if not done:
-            self.folder_info.config(text=t("gal.loading") + f" {n}")
+            self.folder_info.config(text=t("gal.loading_fd" if fd else "gal.loading") + f" {n}")
         elif n == 0:
-            self.folder_info.config(text=t("gal.empty"))
+            self.folder_info.config(text=t("gal.empty_fd" if fd else "gal.empty"))
         else:
-            self.folder_info.config(text=t("gal.count", n=n) + (t("gal.capped", n=FOLDER_MAX) if total > FOLDER_MAX
-                                                               else ""))
+            self.folder_info.config(text=t("gal.count_fd" if fd else "gal.count", n=n)
+                                    + (t("gal.capped", n=FOLDER_MAX) if total > FOLDER_MAX else ""))
 
     def _apply_folder_filter(self) -> None:
         st = self.gal["folder"]
@@ -1461,7 +1802,10 @@ class App(tk.Tk):
     def _append_thumbs(self, start: int) -> None:
         for idx in range(start, len(self.faces)):
             face = self.faces[idx]
-            photo = ImageTk.PhotoImage(_on_checker(face.image, THUMB))
+            thumb = _on_checker(face.image, THUMB)
+            if not facedrop.is_facedrop_path(face.path) and self._in_game(face):
+                thumb = _ingame_badge(thumb)
+            photo = ImageTk.PhotoImage(thumb)
             lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background="#f4f4f4",
                            cursor="hand2")
             lbl.bind("<Button-1>", lambda e, i=idx: self._click_thumb(e, i))
@@ -1524,6 +1868,11 @@ class App(tk.Tk):
                 + t("sel.age", gender=opt("gender", m["geschlecht"]), age=m["alter"]) + f"\n{m['haare']}")
         if m.get("persoenlichkeit"):
             text += "\n" + t("sel.pers", p=pers_short(m["persoenlichkeit"]))
+        if facedrop.is_facedrop_path(face.path):
+            pid = facedrop.player_id(face.path)
+            text += "\n" + (t("sel.fd_id", id=pid) if pid else t("sel.fd_real")) + "\n" + t("sel.fd_readonly")
+        elif self._in_game(face):
+            text += "\n" + t("sel.ingame")
         if face.source == "log":
             text += "\n" + t("sel.from_log")
         elif face.source == "unknown":
@@ -1535,7 +1884,7 @@ class App(tk.Tk):
 
     def _reroll(self) -> None:
         face = self._current()
-        if not face or not self._prepare():
+        if not face or self._fd_readonly([face]) or not self._prepare():
             return
         # gleicher Dateiname -> Datei wird ersetzt (wichtig für Spielerlisten-Namen)
         gen = self._make_generator(out_dir=face.path.parent, overwrite=True)
@@ -1554,7 +1903,9 @@ class App(tk.Tk):
             return
         if not self._prepare():
             return
-        gen = self._make_generator(out_dir=face.path.parent)
+        # aus FaceDrop heraus: neue Bilder in den Speicherort (FaceDrops Ordner bleibt unverändert)
+        out = self._out_dir(face.options.country) if facedrop.is_facedrop_path(face.path) else face.path.parent
+        gen = self._make_generator(out_dir=out)
         if not getattr(gen.backend, "supports_img2img", False):
             if face.source == "unknown":
                 messagebox.showinfo(APP_NAME, t("msg.aging_need_local"))
@@ -1591,7 +1942,7 @@ class App(tk.Tk):
     def _delete(self) -> None:
         """Markierte Bilder nach Rückfrage in den Papierkorb verschieben."""
         faces = self._marked_faces()
-        if not faces or self._busy():
+        if not faces or self._busy() or self._fd_readonly(faces):
             return
         if not messagebox.askyesno(APP_NAME, t("msg.delete_confirm", n=len(faces),
                                                names="\n".join(f.path.name for f in faces[:8])
@@ -1624,7 +1975,7 @@ class App(tk.Tk):
     def _rename(self) -> None:
         """Ausgewähltes Bild umbenennen (z. B. in den Spielernamen)."""
         face = self._current()
-        if not face or self._busy():
+        if not face or self._busy() or self._fd_readonly([face]):
             return
         new = simpledialog.askstring(APP_NAME, t("dlg.rename"), parent=self, initialvalue=face.path.stem)
         if not new or not new.strip() or new.strip() == face.path.stem:
@@ -1654,6 +2005,30 @@ class App(tk.Tk):
         if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
                 and self.right_nb.index("current") in (0, 1):
             self._delete()
+
+    def _on_key_copy(self, event) -> None:
+        if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
+                and self.right_nb.index("current") in (0, 1):
+            self._copy_files()
+
+    def _copy_files(self) -> None:
+        """Bilddatei(en) wie im Explorer kopieren – in FM dann Maus aufs Porträt und Strg+V (FaceDrop)."""
+        paths = [f.path for f in self._marked_faces() if f.path.exists()]
+        if not paths:
+            return
+        if winclip.copy_files(paths):
+            self.status.config(text=t("status.copied_file", n=len(paths)))
+        else:
+            self.clipboard_clear()
+            self.clipboard_append("\n".join(str(p) for p in paths))
+            self.status.config(text=t("status.copied_path", n=len(paths)))
+
+    def _fd_readonly(self, faces: list[GeneratedFace]) -> bool:
+        """Bilder in FaceDrops Ordnern werden nie verändert – True (mit Hinweis), wenn welche dabei sind."""
+        if any(facedrop.is_facedrop_path(f.path) for f in faces):
+            messagebox.showinfo(APP_NAME, t("msg.fd_readonly"))
+            return True
+        return False
 
     def _on_key_rename(self, event) -> None:
         if self.right_nb.index("current") in (0, 1):
@@ -1791,6 +2166,7 @@ class App(tk.Tk):
 
     # ================================================================== Ende
     def _on_close(self) -> None:
+        self.fd_stop.set()
         try:
             self._read_from_ui()
             settings_mod.save(self.cfg)

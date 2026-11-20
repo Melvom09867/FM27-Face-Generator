@@ -51,7 +51,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force pkg | Out-Null
-          Copy-Item dist\FM27-FaceGenerator.exe, README.md, LIESMICH.md, laender.beispiel.json pkg\
+          Copy-Item dist\FM27-FaceGenerator.exe, README.md, LIESMICH.md, PatchNotes.txt, PatchNotes_DE.txt, laender.beispiel.json pkg\
           Compress-Archive -Path pkg\* -DestinationPath FM27-FaceGenerator-windows.zip
 
       - uses: actions/upload-artifact@v4

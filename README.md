@@ -63,6 +63,7 @@ You do **not** need to install Python or anything else.
 At the bottom of the window next to **"Save to:"**:
 
 - **"Find FM folder"** – automatically finds `Documents\Sports Interactive\Football Manager …`
+  (or your own FM user data folder if you moved it with the Steam launch option `user_data_location="…"`)
   and suggests `…\graphics\FM27 Faces` (choose "No" to pick a folder inside the FM directory yourself).
 - **"Choose folder…"** – pick any folder.
 - **"Open"** – opens the folder in Explorer.
@@ -83,12 +84,20 @@ personalities also show the English FM name, e.g. "Mercenario (Mercenary)".
 
 ### Updates
 
-When a new version is available, a notice appears at startup: **"Yes, please"** opens the download page,
-**"No, I want to play"** closes the window. With **"Don't show this version again"** exactly that version is no
+When a new version is available, a notice appears at startup:
+
+- **"Update now"** downloads the new version, replaces `FM27-FaceGenerator.exe` and restarts the generator – done.
+  (Only works if the program folder is writable, e.g. not inside `C:\Program Files`. Otherwise the button is
+  missing and the download page remains.)
+- **"Open download page"** opens the page in your browser.
+- **"No, I want to play"** closes the window.
+
+ With **"Don't show this version again"** exactly that version is no
 longer announced – but the next newer one is. (Turn off: **Output** tab → "Check for updates at startup".
 Only a request to GitHub is sent, no personal data.)
 
-Download the new version and simply replace the old `FM27-FaceGenerator.exe`.
+Manually: download the new version and simply replace the old `FM27-FaceGenerator.exe`.
+What changed is listed in `PatchNotes.txt`.
 Your settings are kept (stored in `%APPDATA%\FM27FaceGenerator`).
 
 ### Uninstall
@@ -131,6 +140,30 @@ Adjustable in the **Output** tab → "File name".
   afterwards (the info is stored inside the file).
 - **Delete**: **"Delete"** button or the **Del** key – after confirmation the images go to the **Recycle Bin**
   (restorable).
+- **Copy**: **"Copy (Ctrl+C)"** button or **Ctrl+C** – copies the image file like Explorer does.
+  In FM hover over the portrait and press **Ctrl+V** (FaceDrop). Handy when dragging doesn't work (e.g. full screen).
+
+### Working with FaceDrop
+
+The generator detects FaceDrop automatically – even if your FM user data folder lives elsewhere via the Steam
+launch option (`user_data_location="…"`). If there are several FaceDrop folders (e.g. the old location kept as a
+backup after moving), it takes the one FaceDrop used last. Status and settings: **Output** tab → **FaceDrop**
+("Choose folder …" if needed, "Detect automatically" resets it).
+
+> **Important:** Nothing in FaceDrop's folders is **ever changed** – they are only read.
+
+- **Gallery → Show: Save folder | FaceDrop**: with "FaceDrop" you see the images that are already **in the game** –
+  per **career** (save game) or "Real players". The **player ID** is shown too. These images can be viewed,
+  copied, dragged and used for an **ageing set** (the new images go to your save folder), but not renamed,
+  deleted or re-rolled.
+- **✓ in the game**: your own images that FaceDrop has already taken over get a green check mark.
+- **Clean up duplicate images**: when you drop an image onto a player with FaceDrop, FaceDrop copies it into its
+  folder – so it exists twice on disk. The generator notices this (at startup and while running) and asks whether
+  **your** copy should go to the Recycle Bin. FaceDrop's copy stays, nothing changes in the game. Setting:
+  **Output → FaceDrop → Duplicate images**: *Ask* (default), *Clean up automatically* or *Off*.
+  Only images created by the generator itself are touched.
+- **Players without a face**: the status bar and the gallery show how many players in the game still have the
+  default head (according to FaceDrop).
 
 ### Dual heritage (parents from another country)
 
@@ -360,7 +393,7 @@ Countries the program doesn't know still work – the AI then decides from the c
 
 - **Country and personality fields**: type (e.g. `Port` or `merc`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
 - **All other drop-downs**: click and type – jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
-- **Gallery**: **F2** = rename, **Del** = Recycle Bin, **Ctrl/Shift + click** = select several.
+- **Gallery**: **F2** = rename, **Del** = Recycle Bin, **Ctrl+C** = copy image (in FM: Ctrl+V), **Ctrl/Shift + click** = select several.
 
 ## Shirt in club colours
 
