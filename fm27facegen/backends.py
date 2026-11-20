@@ -21,7 +21,7 @@ from PIL import Image
 from .i18n import t
 from .prompts import FacePrompt
 
-USER_AGENT = "FM27-FaceGenerator/1.8.3"
+USER_AGENT = "FM27-FaceGenerator/1.8.4"
 
 
 class BackendError(RuntimeError):
