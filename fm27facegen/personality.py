@@ -193,6 +193,11 @@ def resolve_personality(raw: str) -> str | None:
     for name, row in PERSONALITY_NAMES.items():
         if any(key == _norm(local) for local in row):
             return name
+    from .i18n import EXTRA, _extra  # weitere Sprachen (nl, pl, ru …)
+    for code in EXTRA:
+        for name, local in _extra(code).PERSONALITY.items():
+            if key == _norm(local):
+                return name
     return None
 
 

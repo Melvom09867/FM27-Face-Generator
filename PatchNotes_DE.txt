@@ -3,6 +3,20 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.1
+---------------
+- 20 Sprachen: alle Sprachen, die es in FM27 gibt (außer Arabisch). Neu: Niederländisch, Dänisch, Norwegisch,
+  Schwedisch, Polnisch, Russisch, Türkisch, Griechisch, Indonesisch, Chinesisch (vereinfacht),
+  Spanisch (Lateinamerika) und Portugiesisch (Portugal).
+- Alle Übersetzungen außer Deutsch sind KI-erstellt und in der Sprachauswahl so gekennzeichnet,
+  z. B. "Nederlands (AI-vertaald)".
+- Ländernamen der neuen Sprachen stammen aus der ISO-Länderliste (nicht KI).
+- Spielerliste: Länder- und Persönlichkeitsnamen der neuen Sprachen werden beim Import erkannt; die Spaltennamen
+  der neuen Sprachen sind geschätzt (noch nicht mit echten FM-Exporten geprüft).
+- Oberfläche: "Tattoos ab" hat eine eigene Zeile, lange Texte im Tab Ausgabe brechen um statt abgeschnitten zu
+  werden – in allen Sprachen.
+
+
 Version 1.8.7
 -------------
 (enthält alles aus den Testversionen 1.8.1 – 1.8.4)

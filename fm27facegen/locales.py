@@ -6,6 +6,7 @@ Neue Texte immer in allen 8 Sprachen ergänzen – ein Test prüft das.
 # fmt: off
 STRINGS: dict[str, tuple[str, ...]] = {
     # ------------------------------------------------------------------ Sprachdialog
+    "lang.ai": ('KI-übersetzt', 'AI-translated', 'tradotto con IA', 'traduit par IA', 'traducido con IA', 'traduzido por IA', 'AI翻訳', 'AI 번역'),
     "lang.title": ("Sprache wählen", "Choose language", "Scegli la lingua", "Choisir la langue", "Elegir idioma", "Escolher idioma", "言語を選択", "언어 선택"),
     "lang.label": ("Sprache:", "Language:", "Lingua:", "Langue :", "Idioma:", "Idioma:", "言語:", "언어:"),
     "lang.dont_ask": ("Beim Start nicht mehr fragen", "Don't ask again at startup", "Non chiedere più all'avvio", "Ne plus demander au démarrage", "No volver a preguntar al iniciar", "Não perguntar novamente ao iniciar", "次回から起動時に確認しない", "다음부터 시작할 때 묻지 않기"),

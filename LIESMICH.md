@@ -18,7 +18,7 @@ mit der Mod **FaceDrop** einfach auf den Spieler im Spiel.
 - **FM-Cut-out-Stil** wie bei echten Facepacks: Kopf füllt das Bild, Hintergrund per KI **transparent freigestellt**
 - Galerie mit „Neu würfeln“, „Löschen“, „Im Ordner zeigen“; Protokoll `generiert.csv`
 - **Bereits erstellte Bilder wieder laden** – z. B. um Jahre später ein Alterungs-Set zu erstellen
-- **8 Sprachen**: Deutsch, Englisch, Italienisch, Französisch, Spanisch, Portugiesisch, Japanisch, Koreanisch
+- **20 Sprachen** – alle Sprachen von FM27 (außer Arabisch); alle Übersetzungen außer Deutsch sind KI-erstellt
 
 ---
 
@@ -104,7 +104,10 @@ Programmordner löschen. Optional auch `%APPDATA%\FM27FaceGenerator` (Einstellun
 Jederzeit unten rechts über den Button **„Sprache: …“**. Die Oberfläche wird sofort umgestellt –
 Einstellungen, Galerie und geladene Spielerliste bleiben erhalten.
 
-Verfügbar: Deutsch, English, Italiano, Français, Español, Português, 日本語, 한국어.
+Verfügbar: Deutsch, English, Español (España), Español (Latinoamérica), Français, Italiano, Nederlands, Dansk, Norsk, Svenska, Polski, Português (Brasil), Português (Portugal), Русский, Türkçe, Ελληνικά, Bahasa Indonesia, 日本語, 한국어, 简体中文.
+
+> **Hinweis:** Alle Übersetzungen außer Deutsch wurden mit KI erstellt und sind in der Sprachauswahl so
+> gekennzeichnet (z. B. „Nederlands (AI-vertaald)“). Verbesserungsvorschläge sind willkommen.
 Auch Länder, Haarfarben, Persönlichkeiten usw. werden übersetzt. Persönlichkeiten zeigen in den
 übrigen Sprachen zusätzlich den englischen FM-Namen, z. B. „Mercenario (Mercenary)“.
 
@@ -203,9 +206,12 @@ den Einstellungen links. Spieler ohne Persönlichkeit in der Liste bekommen die 
 Unter der Liste kannst du Land, 2. Land und Persönlichkeit für markierte Spieler nachträglich ändern.
 Eine eigene CSV-Datei (z. B. aus Excel) geht auch – Kopfzeile z. B. `Name;Nation;Alter;2. Nation;Persönlichkeit;UID`.
 
-**FM in einer anderen Sprache?** Kein Problem: Spaltennamen (z. B. *Nome/Età/Nazionalità*, *Nom/Âge*, *名前/年齢/国籍*),
-Ländernamen (z. B. *Germania*, *Allemagne*, *ドイツ*, *독일*) und Persönlichkeiten werden in allen 8 Sprachen erkannt –
-ebenso die üblichen FIFA-Kürzel wie `GER`, `FRA`, `JPN`.
+**FM in einer anderen Sprache?** Meist kein Problem: Spaltennamen (z. B. *Nome/Età/Nazionalità*, *Nom/Âge*, *名前/年齢/国籍*),
+Ländernamen (z. B. *Germania*, *Allemagne*, *ドイツ*, *독일*) und Persönlichkeiten werden in den Sprachen erkannt –
+ebenso die üblichen FIFA-Kürzel wie `GER`, `FRA`, `JPN`. Bei den mit 1.8.7.1 dazugekommenen Sprachen (Niederländisch,
+Dänisch, Norwegisch, Schwedisch, Polnisch, Russisch, Türkisch, Griechisch, Indonesisch, Chinesisch) sind die
+Spaltennamen geschätzt und noch nicht mit echten FM-Exporten geprüft – klappt es nicht, im Zweifel FM für den Export
+kurz auf Englisch stellen.
 
 ### Persönlichkeit
 
@@ -435,8 +441,9 @@ Mit **„Vereins-Vorlage → Speichern…“** merkt sich der Generator die Komb
 Python 3.10+ installieren und `build.bat` doppelklicken → `dist\FM27-FaceGenerator.exe`.
 Ohne EXE starten: `pip install -r requirements.txt` und `python run.py`.
 
-**Übersetzungen ergänzen/verbessern:** Alle Texte stehen in `fm27facegen/locales.py` (eine Zeile pro Text, alle
-8 Sprachen nebeneinander), Ländernamen in `fm27facegen/country_names.py`. Ein Test prüft, dass jeder Text in allen
+**Übersetzungen ergänzen/verbessern:** Alle Texte stehen in `fm27facegen/locales.py` (eine Zeile pro Text, die
+ersten 8 Sprachen nebeneinander), weitere Sprachen je Datei in `fm27facegen/lang/`, Ländernamen in
+`fm27facegen/country_names.py` bzw. `country_names_extra.py`. Ein Test prüft, dass jeder Text in allen
 Sprachen mit denselben Platzhaltern vorhanden ist.
 
 ## Weitere Ideen

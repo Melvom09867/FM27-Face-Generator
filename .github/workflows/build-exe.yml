@@ -75,5 +75,5 @@ jobs:
 
             Windows app that creates realistic player faces (250 × 250 px, PNG) for Football Manager 27.
             Download `FM27-FaceGenerator-windows.zip` below, extract it and run `FM27-FaceGenerator.exe`. Full guide: README.md.
-            Languages: Deutsch, English, Italiano, Français, Español, Português, 日本語, 한국어.
+            Languages: 20 (all FM27 languages except Arabic) – translations except German are AI-generated.
           files: FM27-FaceGenerator-windows.zip

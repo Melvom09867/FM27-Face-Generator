@@ -18,7 +18,7 @@ the player in the game with the **FaceDrop** mod.
 - **FM cut-out style** like real facepacks: the head fills the image, background **cut out to transparent** by AI
 - Gallery with "Re-roll", "Delete", "Show in folder"; log file `generiert.csv`
 - **Reload previously created images** – e.g. to create an ageing set years later
-- **8 languages**: German, English, Italian, French, Spanish, Portuguese, Japanese, Korean
+- **20 languages** – every FM27 language (except Arabic); all translations except German are AI-generated
 
 ---
 
@@ -78,7 +78,10 @@ The save location and all other settings are remembered automatically.
 Any time via the **"Language: …"** button at the bottom right. The interface switches immediately –
 settings, gallery and a loaded player list are kept.
 
-Available: Deutsch, English, Italiano, Français, Español, Português, 日本語, 한국어.
+Available: Deutsch, English, Español (España), Español (Latinoamérica), Français, Italiano, Nederlands, Dansk, Norsk, Svenska, Polski, Português (Brasil), Português (Portugal), Русский, Türkçe, Ελληνικά, Bahasa Indonesia, 日本語, 한국어, 简体中文.
+
+> **Note:** all translations except German were created with AI and are marked as such in the language
+> selection (e.g. "English (AI-translated)"). Suggestions for improvements are welcome.
 Countries, hair colours, personalities etc. are translated too. In languages other than German and English,
 personalities also show the English FM name, e.g. "Mercenario (Mercenary)".
 
@@ -203,9 +206,11 @@ settings on the left. Players without a personality in the list get the setting 
 Below the list you can change country, 2nd country and personality for selected players afterwards.
 Your own CSV file (e.g. from Excel) works too – header e.g. `Name;Nation;Age;2nd Nation;Personality;UID`.
 
-**FM in another language?** No problem: column names (e.g. *Nome/Età/Nazionalità*, *Nom/Âge*, *名前/年齢/国籍*),
-country names (e.g. *Germania*, *Allemagne*, *ドイツ*, *독일*) and personalities are recognised in all 8 languages –
-as are the usual FIFA codes such as `GER`, `FRA`, `JPN`.
+**FM in another language?** Usually no problem: column names (e.g. *Nome/Età/Nazionalità*, *Nom/Âge*, *名前/年齢/国籍*),
+country names (e.g. *Germania*, *Allemagne*, *ドイツ*, *독일*) and personalities are recognised in these languages –
+as are the usual FIFA codes such as `GER`, `FRA`, `JPN`. For the languages added in 1.8.7.1 (Dutch, Danish,
+Norwegian, Swedish, Polish, Russian, Turkish, Greek, Indonesian, Chinese) the column names are estimated and not yet
+checked against real FM exports – if it doesn't work, switch FM to English for the export.
 
 ### Personality
 
@@ -433,8 +438,9 @@ later just pick it from the list.
 Install Python 3.10+ and double-click `build.bat` → `dist\FM27-FaceGenerator.exe`.
 To run without building an EXE: `pip install -r requirements.txt` and `python run.py`.
 
-**Adding or improving translations:** all texts live in `fm27facegen/locales.py` (one line per text with all
-8 languages side by side), country names in `fm27facegen/country_names.py`. A test checks that every text
+**Adding or improving translations:** all texts live in `fm27facegen/locales.py` (one line per text with the
+first 8 languages side by side), further languages one file each in `fm27facegen/lang/`, country names in
+`fm27facegen/country_names.py` and `country_names_extra.py`. A test checks that every text
 exists in all languages with the same placeholders.
 
 ## Further ideas

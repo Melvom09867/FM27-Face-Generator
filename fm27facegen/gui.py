@@ -29,7 +29,7 @@ from .forge import ForgeManager, api_enabled, find_launcher
 from .update import check_latest, should_notify
 from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, list_folder_images, load_face,
                         parse_ages, rename_face, search_key, trash_files)
-from .i18n import LANGUAGES, country, ethnicity, get_language, opt, personality, set_language, t
+from .i18n import LANGUAGES, country, ethnicity, get_language, language_label, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
 from .prompts import (AUTO, BACKGROUNDS, CLOTHING, EXPRESSIONS, FACIAL_HAIR, GENDERS, HAIR_COLORS,
@@ -127,7 +127,8 @@ class LanguageDialog(tk.Toplevel):
         self.result: tuple[str, bool] | None = None
         self.resizable(False, False)
         self.codes = list(LANGUAGES)
-        self.lang_var = tk.StringVar(self, LANGUAGES.get(current, LANGUAGES["de"]))
+        self.labels = {code: language_label(code) for code in LANGUAGES}
+        self.lang_var = tk.StringVar(self, self.labels.get(current, self.labels["de"]))
         self.dont_ask = tk.BooleanVar(self, not ask_again)
 
         frm = ttk.Frame(self, padding=16)
@@ -136,7 +137,8 @@ class LanguageDialog(tk.Toplevel):
         self.title_lbl.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
         self.lang_lbl = ttk.Label(frm)
         self.lang_lbl.grid(row=1, column=0, sticky="w", padx=(0, 8))
-        cb = ttk.Combobox(frm, textvariable=self.lang_var, values=list(LANGUAGES.values()), state="readonly", width=18)
+        cb = ttk.Combobox(frm, textvariable=self.lang_var, values=list(self.labels.values()), state="readonly",
+                          width=max(len(x) for x in self.labels.values()) + 2, height=20)
         cb.grid(row=1, column=1, sticky="ew")
         cb.bind("<<ComboboxSelected>>", lambda e: self._retranslate())
         self.chk = ttk.Checkbutton(frm, variable=self.dont_ask)
@@ -154,8 +156,8 @@ class LanguageDialog(tk.Toplevel):
         self.geometry(f"+{x}+{y}")
 
     def _code(self) -> str:
-        for code, name in LANGUAGES.items():
-            if name == self.lang_var.get():
+        for code, label in self.labels.items():
+            if label == self.lang_var.get():
                 return code
         return "de"
 
@@ -339,6 +341,7 @@ class App(tk.Tk):
         st.configure("Big.TButton", font=("Segoe UI", 11, "bold"), padding=8)
         st.configure("Hint.TLabel", foreground="#666")
         st.configure("Head.TLabel", font=("Segoe UI", 10, "bold"))
+        st.configure("Wrap.TCheckbutton", wraplength=360)  # lange Übersetzungen umbrechen statt abschneiden
 
     def _row(self, parent, r: int, label: str, widget, hint: str | None = None) -> None:
         ttk.Label(parent, text=label).grid(row=r, column=0, sticky="w", padx=(8, 6), pady=4)
@@ -514,10 +517,11 @@ class App(tk.Tk):
         self.pers_hint = ttk.Label(t_, text="", style="Hint.TLabel", wraplength=370, justify="left")
         self.pers_hint.grid(row=14, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 2))
         pf = ttk.Frame(t_)
-        self._ocombo(pf, "personality_strength", STRENGTHS, lambda k: opt("strength", k), width=9).pack(side="left")
-        ttk.Label(pf, text="   " + t("lbl.tattoo")).pack(side="left")
-        ttk.Spinbox(pf, from_=14, to=40, textvariable=self.v["tattoo_min_age"], width=4).pack(side="left", padx=4)
-        self._row(t_, 15, t("lbl.strength"), pf, t("hint.pers_short"))
+        self._ocombo(pf, "personality_strength", STRENGTHS, lambda k: opt("strength", k), width=12).pack(side="left")
+        self._row(t_, 15, t("lbl.strength"), pf)
+        tf = ttk.Frame(t_)  # eigene Zeile: lange Übersetzungen haben so Platz
+        ttk.Spinbox(tf, from_=14, to=40, textvariable=self.v["tattoo_min_age"], width=4).pack(side="left")
+        self._row(t_, 16, t("lbl.tattoo"), tf, t("hint.pers_short"))
 
     # ------------------------------------------------------------------ Tab: Aussehen
     def _build_tab_look(self, nb) -> None:
@@ -551,7 +555,7 @@ class App(tk.Tk):
         self._row(t_, 9, t("lbl.club"), cf, t("hint.club"))
         self._row(t_, 11, t("lbl.background"), self._ocombo(t_, "background", BACKGROUNDS, lambda k: opt("background", k)),
                   t("hint.background"))
-        ttk.Checkbutton(t_, text=t("chk.skin"), variable=v["skin_details"]).grid(
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.skin"), variable=v["skin_details"]).grid(
             row=13, column=0, columnspan=2, sticky="w", padx=8, pady=4)
         self._row(t_, 14, t("lbl.extra"), ttk.Entry(t_, textvariable=v["extra_prompt"]), t("hint.extra"))
 
@@ -599,23 +603,23 @@ class App(tk.Tk):
         t_ = ttk.Frame(nb, padding=6)
         t_.columnconfigure(1, weight=1)
         nb.add(t_, text=t("tab.output"))
-        ttk.Label(t_, text=t("out.note"), style="Hint.TLabel").grid(row=0, column=0, columnspan=2, sticky="w",
+        ttk.Label(t_, text=t("out.note"), style="Hint.TLabel", wraplength=370, justify="left").grid(row=0, column=0, columnspan=2, sticky="w",
                                                                    padx=8, pady=(0, 6))
-        ttk.Checkbutton(t_, text=t("chk.subfolder"), variable=v["subfolder_per_country"]).grid(
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.subfolder"), variable=v["subfolder_per_country"]).grid(
             row=1, column=0, columnspan=2, sticky="w", padx=8)
-        ttk.Checkbutton(t_, text=t("chk.overwrite"), variable=v["overwrite"]).grid(
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.overwrite"), variable=v["overwrite"]).grid(
             row=2, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 6))
         self._row(t_, 3, t("lbl.pattern"), ttk.Entry(t_, textvariable=v["pattern"]), t("hint.pattern"))
         self._row(t_, 5, t("lbl.zoom"), ttk.Scale(t_, from_=1.2, to=3.0, variable=v["zoom"]), t("hint.zoom"))
         self._row(t_, 7, t("lbl.face_y"), ttk.Scale(t_, from_=0.35, to=0.7, variable=v["face_y"]), t("hint.face_y"))
-        ttk.Checkbutton(t_, text=t("chk.sharpen"), variable=v["sharpen"]).grid(
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.sharpen"), variable=v["sharpen"]).grid(
             row=9, column=0, columnspan=2, sticky="w", padx=8, pady=4)
         ttk.Label(t_, text=t("out.always"), style="Head.TLabel").grid(row=10, column=0, columnspan=2, sticky="w",
                                                                      padx=8, pady=8)
         upd = ttk.Frame(t_)
         upd.grid(row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 0))
-        ttk.Checkbutton(upd, text=t("chk.updates"), variable=v["check_updates"]).pack(anchor="w")
-        ttk.Checkbutton(upd, text=t("chk.prereleases"), variable=v["update_prereleases"]).pack(anchor="w",
+        ttk.Checkbutton(upd, style="Wrap.TCheckbutton", text=t("chk.updates"), variable=v["check_updates"]).pack(anchor="w")
+        ttk.Checkbutton(upd, style="Wrap.TCheckbutton", text=t("chk.prereleases"), variable=v["update_prereleases"]).pack(anchor="w",
                                                                                               pady=(2, 0))
         ttk.Label(t_, text="FaceDrop", style="Head.TLabel").grid(row=12, column=0, columnspan=2, sticky="w",
                                                                 padx=8, pady=(12, 0))
@@ -666,7 +670,7 @@ class App(tk.Tk):
         ttk.Button(ff, text=t("btn.forge_start"), command=lambda: self._forge_start(False)).grid(row=0, column=2,
                                                                                                padx=(4, 0))
         self._row(t_, 10, t("lbl.forge_dir"), ff)
-        ttk.Checkbutton(t_, text=t("chk.forge_auto"), variable=v["forge_autostart"]).grid(
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.forge_auto"), variable=v["forge_autostart"]).grid(
             row=11, column=0, columnspan=2, sticky="w", padx=8, pady=(2, 0))
         self.forge_status = ttk.Label(t_, text=self._forge_status_text(), style="Hint.TLabel", wraplength=370,
                                       justify="left")
@@ -2190,6 +2194,10 @@ def selftest() -> int:
     from .data import resolve_country
     set_language("ko")
     ok = ok and t("btn.ok") == "확인" and country("Deutschland") == "독일" and resolve_country("Allemagne") == "Deutschland"
+    set_language("zh")  # zusätzliche Sprachen (fm27facegen/lang) müssen ebenfalls in der .exe sein
+    ok = ok and t("btn.ok") == "确定" and country("Deutschland") == "德国"
+    set_language("pt-PT")
+    ok = ok and t("btn.delete") == "Eliminar" and t("btn.ok") == "OK"
     set_language("de")
     # Drag and Drop (tkdnd) muss in der .exe enthalten sein – nur prüfbar, wenn ein Fenster erzeugt werden kann
     try:

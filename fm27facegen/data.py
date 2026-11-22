@@ -436,6 +436,10 @@ def _country_lookup() -> dict[str, str]:
         for name, row in NAMES.items():
             for label in row:
                 _lookup.setdefault(norm_text(label), name)
+        from .country_names_extra import NAMES as EXTRA
+        for names in EXTRA.values():
+            for name, label in names.items():
+                _lookup.setdefault(norm_text(label), name)
         for name, (en, _mix) in COUNTRIES.items():
             _lookup[norm_text(en)] = name
             _lookup[norm_text(name)] = name

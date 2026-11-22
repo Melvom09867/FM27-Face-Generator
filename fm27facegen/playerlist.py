@@ -74,17 +74,25 @@ def _norm(h: str) -> str:
     return norm_text(h)
 
 
-# Spaltennamen in allen 8 Sprachen (in Vergleichsform: klein, ohne Akzente)
+# Spaltennamen in allen Sprachen (in Vergleichsform: klein, ohne Akzente).
+# Für die 2026 dazugekommenen Sprachen geschätzt (noch nicht mit echten FM-Exporten geprüft).
 _NAME_COLS = {"name", "spieler", "player", "spielername", "playername", "nome", "nom", "nombre", "giocatore",
-              "joueur", "jugador", "jogador", "名前", "選手名", "選手", "이름", "선수명", "선수"}
+              "joueur", "jugador", "jogador", "名前", "選手名", "選手", "이름", "선수명", "선수",
+              "naam", "speler", "navn", "spiller", "namn", "spelare", "imie", "nazwisko", "zawodnik", "имя", "игрок",
+              "ad", "oyuncu", "isim", "ονομα", "παικτης", "nama", "pemain", "姓名", "球员", "名字"}
 _UID_COLS = {"uid", "uniqueid", "id", "eindeutigeid", "spielerid", "playerid", "固有id", "고유id"}
-_AGE_COLS = {"alter", "age", "eta", "edad", "idade", "年齢", "나이"}
+_AGE_COLS = {"alter", "age", "eta", "edad", "idade", "年齢", "나이", "leeftijd", "alder", "ålder", "wiek", "возраст",
+             "yas", "ηλικια", "usia", "umur", "年龄"}
 _PERS_COLS = {"personlichkeit", "persoenlichkeit", "personality", "charakter", "personalita", "personnalite",
-              "personalidad", "personalidade", "性格", "個性", "성격"}
-_NAT_PARTS = ("nat", "naz", "nac", "国籍", "국적")
-_COUNTRY_COLS = {"land", "country", "paese", "pays", "pais", "国", "국가"}
+              "personalidad", "personalidade", "性格", "個性", "성격", "persoonlijkheid", "personlighed", "personlighet",
+              "osobowosc", "характер", "личность", "kisilik", "προσωπικοτητα", "kepribadian"}
+_NAT_PARTS = ("nat", "naz", "nac", "国籍", "국적", "narod", "obyw", "национ", "гражд", "uyruk", "εθνικ", "υπηκο",
+              "kewarga", "kebangsaan")
+_COUNTRY_COLS = {"land", "country", "paese", "pays", "pais", "国", "국가", "kraj", "страна", "ulke", "χωρα", "negara",
+                 "国家"}
 _SECOND_PARTS = ("2", "zweit", "second", "sec", "other", "weitere", "andere", "seconda", "seconde", "segunda",
-                 "第2", "두번째", "제2")
+                 "第2", "두번째", "제2", "tweede", "anden", "andre", "andra", "drug", "втор", "ikinci",
+                 "δευτερ", "kedua", "第二")
 
 # in dieselbe Vergleichsform bringen wie die Spaltenköpfe (wichtig u. a. für Koreanisch/Japanisch)
 _NAME_COLS, _UID_COLS, _AGE_COLS, _PERS_COLS, _COUNTRY_COLS = (
