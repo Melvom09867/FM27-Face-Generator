@@ -368,6 +368,7 @@ ETHNICITY = {
     "ASIA_S": "Sydasiatisk (Indien, Pakistan, Bangladesh)",
     "ASIA_C": "Centralasiatisk",
     "PACIFIC": "Stillehavsø / polynesisk / Māori",
+    "MELANESIAN": "Melanesisk (Papua Ny Guinea, Fiji, Salomonøerne)",
     "MIXED": "Blandet (f.eks. afrikansk-europæisk)",
 }
 

@@ -37,22 +37,30 @@ jobs:
       - name: Tests
         run: python -m pytest -q
 
+      - name: Symbol und Versionsinfo erzeugen
+        run: |
+          python -m fm27facegen.icon build/icon.ico
+          python tools/version_info.py build/version.txt
+
+      # Programmordner statt Einzeldatei: startet viel schneller (nichts wird bei jedem Start entpackt)
       - name: EXE bauen
-        run: python -m PyInstaller --noconfirm --onefile --windowed --name FM27-FaceGenerator --collect-data cv2 --collect-all tkinterdnd2 --collect-all send2trash run.py
+        run: python -m PyInstaller --noconfirm --onedir --windowed --name FM27-FaceGenerator --icon build/icon.ico --version-file build/version.txt --collect-data cv2 --collect-all tkinterdnd2 --collect-all send2trash run.py
 
       - name: Selbsttest der EXE
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath dist\FM27-FaceGenerator.exe -ArgumentList "--selftest" -Wait -PassThru
+          $p = Start-Process -FilePath dist\FM27-FaceGenerator\FM27-FaceGenerator.exe -ArgumentList "--selftest" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Selbsttest fehlgeschlagen (Exit-Code $($p.ExitCode))" }
           Write-Host "Selbsttest OK"
 
       - name: Paket zusammenstellen
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force pkg | Out-Null
-          Copy-Item dist\FM27-FaceGenerator.exe, README.md, LIESMICH.md, PatchNotes.txt, PatchNotes_DE.txt, laender.beispiel.json pkg\
-          Compress-Archive -Path pkg\* -DestinationPath FM27-FaceGenerator-windows.zip
+          $dir = "pkg\FM27 Face Generator"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item -Recurse dist\FM27-FaceGenerator\* $dir
+          Copy-Item README.md, LIESMICH.md, PatchNotes.txt, PatchNotes_DE.txt, laender.beispiel.json $dir
+          Compress-Archive -Path pkg\* -DestinationPath FM27-FaceGenerator-win.zip
 
       - uses: actions/upload-artifact@v4
         with:
@@ -70,10 +78,10 @@ jobs:
           body: |
             Windows-Programm zum Erzeugen realistischer Spielergesichter (250 × 250 px, PNG) für Football Manager 27.
 
-            **Download:** `FM27-FaceGenerator-windows.zip` unten herunterladen, entpacken, `FM27-FaceGenerator.exe` starten.
+            **Download:** `FM27-FaceGenerator-win.zip` unten herunterladen, entpacken, im Ordner „FM27 Face Generator“ die `FM27-FaceGenerator.exe` starten.
             Die ausführliche Anleitung (Installation, FM-Import, lokales Stable Diffusion) steht in der enthaltenen LIESMICH.md (Deutsch) bzw. README.md (English).
 
             Windows app that creates realistic player faces (250 × 250 px, PNG) for Football Manager 27.
-            Download `FM27-FaceGenerator-windows.zip` below, extract it and run `FM27-FaceGenerator.exe`. Full guide: README.md.
+            Download `FM27-FaceGenerator-win.zip` below, extract it and run `FM27-FaceGenerator.exe` in the "FM27 Face Generator" folder. Full guide: README.md.
             Languages: 20 (all FM27 languages except Arabic) – translations except German are AI-generated.
-          files: FM27-FaceGenerator-windows.zip
+          files: FM27-FaceGenerator-win.zip

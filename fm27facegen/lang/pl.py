@@ -368,6 +368,7 @@ ETHNICITY = {
     "ASIA_S": "Południowoazjatyckie (Indie, Pakistan, Bangladesz)",
     "ASIA_C": "Środkowoazjatyckie",
     "PACIFIC": "Wyspy Pacyfiku / polinezyjskie / Maorysi",
+    "MELANESIAN": "Melanezyjskie (Papua-Nowa Gwinea, Fidżi, Wyspy Salomona)",
     "MIXED": "Mieszane (np. afrykańsko-europejskie)",
 }
 

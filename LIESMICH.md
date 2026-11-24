@@ -8,7 +8,7 @@ mit der Mod **FaceDrop** einfach auf den Spieler im Spiel.
 
 **Funktionen im Überblick**
 
-- **Geburtsland** (131 Länder) und **Ethnie** – automatisch passend zum Land oder fest eingestellt
+- **Geburtsland** (alle 211 FIFA-Länder) und **Ethnie** – automatisch passend zum Land oder fest eingestellt
 - **Doppelte Herkunft**, z. B. „geboren in Deutschland, Eltern aus Ghana“ oder „ein Elternteil aus Marokko“
 - **Alter** (auch als Bereich), **Geschlecht**, Haarfarbe, Frisur, Bart, Ausdruck, Kleidung/Farbe, Hintergrund
 - **Spielerliste aus FM importieren** – für jeden Jugendspieler automatisch ein passendes Bild mit seinem Namen
@@ -31,7 +31,7 @@ Python oder andere Programme musst du **nicht** installieren.
 
 **Variante A – Release (am einfachsten, falls vorhanden):**
 1. Auf der GitHub-Seite dieses Projekts rechts auf **Releases** klicken.
-2. Beim neuesten Release die Datei **`FM27-FaceGenerator-windows.zip`** herunterladen.
+2. Beim neuesten Release die Datei **`FM27-FaceGenerator-win.zip`** herunterladen.
 
 **Variante B – aus dem automatischen Build:**
 1. Auf GitHub angemeldet sein (Downloads aus „Actions“ gehen nur mit Konto).
@@ -44,12 +44,13 @@ Python oder andere Programme musst du **nicht** installieren.
 1. Die ZIP-Datei im Download-Ordner mit **Rechtsklick → „Alle extrahieren…“** entpacken.
 2. Den entpackten Ordner an einen festen Ort verschieben, z. B. `C:\Programme (eigene)\FM27 Face Generator`
    oder einfach auf den Desktop. (Nicht direkt aus der ZIP heraus starten!)
-3. Im Ordner liegen: `FM27-FaceGenerator.exe`, diese Anleitung (`LIESMICH.md`, Deutsch), die englische
-   `README.md` und `laender.beispiel.json`.
+3. Im Ordner **„FM27 Face Generator“** liegen: `FM27-FaceGenerator.exe`, der Unterordner `_internal`
+   (gehört zum Programm – nicht löschen oder verschieben!), diese Anleitung (`LIESMICH.md`, Deutsch), die englische
+   `README.md`, die PatchNotes und `laender.beispiel.json`. Immer den **ganzen Ordner** zusammen lassen.
 
 ### 3. Erster Start
 
-1. **Doppelklick** auf `FM27-FaceGenerator.exe`. Der erste Start dauert ein paar Sekunden.
+1. **Doppelklick** auf `FM27-FaceGenerator.exe`. Der Generator startet nach wenigen Sekunden im Vordergrund.
 2. Erscheint **„Der Computer wurde durch Windows geschützt“** (SmartScreen):
    auf **„Weitere Informationen“** → **„Trotzdem ausführen“** klicken.
    Das passiert, weil das Programm nicht kostenpflichtig signiert ist.
@@ -78,8 +79,8 @@ Der Speicherort und alle anderen Einstellungen werden automatisch gemerkt.
 
 Gibt es eine neue Version, erscheint beim Start ein Hinweis:
 
-- **„Jetzt aktualisieren“** lädt die neue Version herunter, tauscht die `FM27-FaceGenerator.exe` aus und startet
-  den Generator neu – fertig. (Geht nur, wenn der Programmordner beschreibbar ist, also z. B. nicht unter
+- **„Jetzt aktualisieren“** lädt die neue Version herunter, tauscht das Programm im Ordner aus und startet
+  den Generator neu – fertig. Deine Einstellungen und eigene Dateien wie `laender.json` bleiben erhalten. (Geht nur, wenn der Programmordner beschreibbar ist, also z. B. nicht unter
   `C:\Programme`. Dann fehlt der Button und es bleibt der Weg über die Download-Seite.)
 - **„Download-Seite öffnen“** öffnet die Seite im Browser.
 - **„Nein, will zocken“** schließt das Fenster.
@@ -88,7 +89,13 @@ Gibt es eine neue Version, erscheint beim Start ein Hinweis:
 Version nicht mehr gemeldet – die nächste neuere aber wieder. (Ausschalten: Tab **Ausgabe** → „Beim Start nach
 Updates suchen“. Gesendet wird dabei nur eine Anfrage an GitHub, keine persönlichen Daten.)
 
-Von Hand: neue Version herunterladen und die alte `FM27-FaceGenerator.exe` einfach ersetzen.
+Von Hand: neue Version herunterladen, entpacken und den Inhalt des Ordners „FM27 Face Generator“ über den
+alten Programmordner kopieren (oder den alten Ordner durch den neuen ersetzen).
+
+> **Einmalig beim Wechsel von 1.8.7.1 oder älter auf 1.8.7.2+:** Ab 1.8.7.2 ist der Generator ein Programmordner
+> (EXE + `_internal`) statt einer einzelnen EXE – dadurch startet er viel schneller. Diesen einen Wechsel bitte
+> **von Hand** machen: neue ZIP laden, entpacken, alte `FM27-FaceGenerator.exe` löschen und den neuen Ordner
+> nutzen. Ab dann klappt „Jetzt aktualisieren“ wieder automatisch.
 Was sich geändert hat, steht in `PatchNotes_DE.txt`.
 
 **Testschalter:** Mit **„Auch Testversionen“** (Tab **Ausgabe**, neben „Beim Start nach Updates suchen“) meldet der
@@ -401,8 +408,8 @@ Länder, die das Programm nicht kennt, funktionieren trotzdem – dann entscheid
 
 ## Bedienung per Tastatur
 
-- **Länder- und Persönlichkeitsfelder**: tippen (z. B. `Port` oder `söld`) → **Enter** übernimmt den besten Treffer (Portugal). **↓** öffnet die gefilterte Liste.
-- **Alle anderen Auswahlfelder**: anklicken und tippen – springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
+- **Länder- und Persönlichkeitsfelder**: ins Feld klicken und tippen (z. B. `Elf` oder `söl`) – die Liste öffnet sich gefiltert und der beste Treffer ist markiert (Elfenbeinküste). **↑/↓** wählt in der Liste, **Enter** übernimmt, **Esc** schließt.
+- **Alle anderen Auswahlfelder**: anklicken und tippen – die Liste öffnet sich und springt zum passenden Eintrag (z. B. `bl` → Blond), **Enter** übernimmt.
 - **Galerie**: **F2** = umbenennen, **Entf** = in den Papierkorb, **Strg+C** = Bild kopieren (in FM: Strg+V), **Strg/Shift + Klick** = mehrere auswählen.
 
 ## Trikot in Vereinsfarben
@@ -438,7 +445,7 @@ Mit **„Vereins-Vorlage → Speichern…“** merkt sich der Generator die Komb
 
 ## Selbst bauen (nur für Bastler)
 
-Python 3.10+ installieren und `build.bat` doppelklicken → `dist\FM27-FaceGenerator.exe`.
+Python 3.10+ installieren und `build.bat` doppelklicken → Ordner `dist\FM27-FaceGenerator\` (mit der EXE).
 Ohne EXE starten: `pip install -r requirements.txt` und `python run.py`.
 
 **Übersetzungen ergänzen/verbessern:** Alle Texte stehen in `fm27facegen/locales.py` (eine Zeile pro Text, die

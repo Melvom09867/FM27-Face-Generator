@@ -368,6 +368,7 @@ ETHNICITY = {
     "ASIA_S": "Zuid-Aziatisch (India, Pakistan, Bangladesh)",
     "ASIA_C": "Centraal-Aziatisch",
     "PACIFIC": "Pacifisch / Polynesisch / Māori",
+    "MELANESIAN": "Melanesisch (Papoea-Nieuw-Guinea, Fiji, Salomonseilanden)",
     "MIXED": "Gemengd (bijv. Afrikaans-Europees)",
 }
 

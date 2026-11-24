@@ -121,8 +121,8 @@ def test_selfupdate_unpack_and_script(tmp_path):
     target = tmp_path / "app"
     target.mkdir()
     (target / "laender.json").write_text("mein", encoding="utf-8")
-    new = selfupdate.unpack(z, target, "FM27-FaceGenerator.exe")
-    assert new.name == "FM27-FaceGenerator.exe.new" and new.read_bytes() == b"MZ new"
+    kind, new = selfupdate.unpack(z, target, "FM27-FaceGenerator.exe")
+    assert kind == "exe" and new.name == "FM27-FaceGenerator.exe.new" and new.read_bytes() == b"MZ new"
     assert (target / "PatchNotes_DE.txt").read_text(encoding="utf-8") == "neu"
     assert (target / "laender.json").read_text(encoding="utf-8") == "mein"
     script = selfupdate.helper_script(4242, Path("C:/A B/x.exe"), Path("C:/A B/x.exe.new"))
@@ -169,3 +169,33 @@ def test_update_with_prereleases(monkeypatch):
 
     monkeypatch.setattr(update.requests, "get", lambda *a, **k: R())
     assert update.check_latest(include_prereleases=True) == {"version": "1.8.4", "url": "b", "asset": "z4"}
+
+
+def test_selfupdate_folder_package(tmp_path):
+    """Ab 1.8.7.2: Programmordner (.exe + _internal) – wird bereitgestellt, das Hilfsskript tauscht den Ordner."""
+    z = tmp_path / "pkg.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("FM27 Face Generator/FM27-FaceGenerator.exe", b"MZ new")
+        zf.writestr("FM27 Face Generator/_internal/python312.dll", b"dll")
+        zf.writestr("FM27 Face Generator/PatchNotes_DE.txt", "neu")
+    app = tmp_path / "app"
+    app.mkdir()
+    kind, src = selfupdate.unpack(z, app, "FM27-FaceGenerator.exe")
+    assert kind == "folder" and (src / "FM27-FaceGenerator.exe").read_bytes() == b"MZ new"
+    assert (src / "_internal" / "python312.dll").exists() and src.is_relative_to(app / selfupdate.STAGE_DIR)
+    script = selfupdate.helper_script(7, app / "FM27-FaceGenerator.exe", src, "folder")
+    assert "robocopy" in script and "_internal" in script and "PID eq 7" in script
+
+
+def test_update_prefers_folder_package(monkeypatch):
+    class R:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"tag_name": "v1.9.0", "html_url": "u", "assets": [
+                {"name": "FM27-FaceGenerator-windows.zip", "browser_download_url": "old"},
+                {"name": "FM27-FaceGenerator-win.zip", "browser_download_url": "new"}]}
+
+    monkeypatch.setattr(update.requests, "get", lambda *a, **k: R())
+    assert update.check_latest()["asset"] == "new"

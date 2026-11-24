@@ -26,8 +26,10 @@ def _release_info(data: dict) -> dict | None:
     version = str(data.get("tag_name", "")).lstrip("vV")
     if data.get("draft") or not parse_version(version):
         return None
-    asset = next((a.get("browser_download_url") for a in data.get("assets") or []
-                  if str(a.get("name", "")).lower().endswith("windows.zip")), None)
+    assets = data.get("assets") or []
+    # ab 1.8.7.2 Programmordner-Paket "-win.zip"; ältere Versionen nur "-windows.zip" (eine .exe)
+    asset = next((a.get("browser_download_url") for suffix in ("-win.zip", "windows.zip") for a in assets
+                  if str(a.get("name", "")).lower().endswith(suffix)), None)
     return {"version": version, "url": data.get("html_url") or RELEASES_URL, "asset": asset}
 
 

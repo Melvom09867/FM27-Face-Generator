@@ -3,6 +3,23 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.2
+---------------
+- All 211 FIFA countries available (previously 131), e.g. El Salvador, Cuba, Guatemala, Taiwan, Fiji, Moldova –
+  each with a typical population mix. New ethnicity "Melanesian" (Papua New Guinea, Fiji, Solomon Islands …).
+- Drop-downs: typing opens the list and jumps to the matching entry (e.g. "Ivo" → Ivory Coast). Arrow keys move
+  within the list, Enter confirms, Esc closes.
+- Typing in the personality field fixed: "Merc" + Enter now gives Mercenary. Clicking into the field selects the
+  old text so typing replaces it.
+- FaceDrop: duplicate images are detected after about 1–2 seconds (previously up to 30 s), the question appears in
+  the foreground. The gallery is no longer rebuilt completely.
+- Much faster start: the generator is now a program folder (EXE + _internal) instead of a single EXE that had to
+  unpack itself on every start. "Update now" is faster too. Switch once manually (see README, section Updates).
+- Task Manager and taskbar show "FM27 Face Generator" instead of "Python", with its own icon (player head +
+  football) instead of the default icon.
+- The generator starts directly in the foreground.
+
+
 Version 1.8.7.1
 ---------------
 - 20 languages: every language available in FM27 (except Arabic). New: Dutch, Danish, Norwegian, Swedish, Polish,

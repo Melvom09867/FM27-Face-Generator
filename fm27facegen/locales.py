@@ -519,6 +519,7 @@ ETHNICITY_NAMES: dict[str, tuple[str, ...]] = {
     "ASIA_S": ("South Asian (India, Pakistan, Bangladesh)", "Sud asiatico (India, Pakistan, Bangladesh)", "Sud-asiatique (Inde, Pakistan, Bangladesh)", "Surasiático (India, Pakistán, Bangladés)", "Sul-asiático (Índia, Paquistão, Bangladesh)", "南アジア系（インド、パキスタン、バングラデシュ）", "남아시아계 (인도, 파키스탄, 방글라데시)"),
     "ASIA_C": ("Central Asian", "Centroasiatico", "Asiatique central", "Centroasiático", "Centro-asiático", "中央アジア系", "중앙아시아계"),
     "PACIFIC": ("Pacific Islander / Polynesian / Māori", "Pacifico / polinesiano / maori", "Océanien / polynésien / maori", "Isleño del Pacífico / polinesio / maorí", "Ilhéu do Pacífico / polinésio / maori", "太平洋諸島・ポリネシア・マオリ系", "태평양 섬 / 폴리네시아 / 마오리계"),
+    "MELANESIAN": ('Melanesian (Papua New Guinea, Fiji, Solomon Islands)', 'Melanesiano (Papua Nuova Guinea, Figi, Isole Salomone)', 'Mélanésien (Papouasie-Nouvelle-Guinée, Fidji, Îles Salomon)', 'Melanesio (Papúa Nueva Guinea, Fiyi, Islas Salomón)', 'Melanésio (Papua-Nova Guiné, Fiji, Ilhas Salomão)', 'メラネシア系（パプアニューギニア、フィジー、ソロモン諸島）', '멜라네시아계 (파푸아뉴기니, 피지, 솔로몬 제도)'),
     "MIXED": ("Mixed (e.g. African-European)", "Misto (es. africano-europeo)", "Métis (p. ex. africain-européen)", "Mixto (p. ej. africano-europeo)", "Misto (ex.: africano-europeu)", "ミックス（例：アフリカ系とヨーロッパ系）", "혼혈 (예: 아프리카계-유럽계)"),
 }
 

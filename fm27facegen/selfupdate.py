@@ -9,6 +9,7 @@ Funktioniert nur in der fertigen Windows-.exe und nur, wenn ihr Ordner beschreib
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -57,11 +58,34 @@ def download(url: str, dest: Path, progress: Callable[[float], None] | None = No
                     progress(min(done / total, 1.0))
 
 
-def unpack(zip_path: Path, target_dir: Path, exe_name: str) -> Path:
-    """Neue .exe als '<exe_name>.new' entpacken, Anleitungen/PatchNotes direkt aktualisieren."""
-    new_exe = target_dir / (exe_name + ".new")
-    found = False
+STAGE_DIR = "_update_new"
+
+
+def unpack(zip_path: Path, target_dir: Path, exe_name: str) -> tuple[str, Path]:
+    """Update-Paket auspacken.
+
+    Programmordner-Paket (ab 1.8.7.2: .exe + _internal): alles nach '<Programmordner>/_update_new' –
+    Rückgabe ("folder", Ordner mit der neuen .exe). Altes Ein-Datei-Paket: neue .exe als '<exe_name>.new' –
+    Rückgabe ("exe", Pfad). Anleitungen/PatchNotes werden in beiden Fällen gleich aktualisiert."""
     with zipfile.ZipFile(zip_path) as z:
+        names = [i.filename.replace("\\", "/") for i in z.infolist()]
+        if any("/_internal/" in "/" + n for n in names):
+            stage = target_dir / STAGE_DIR
+            if stage.exists():
+                shutil.rmtree(stage, ignore_errors=True)
+            stage.mkdir(parents=True)
+            root = stage.resolve()
+            for info in z.infolist():
+                dest = (stage / info.filename).resolve()
+                if root not in dest.parents and dest != root:
+                    raise ValueError("unsafe path in update package")
+            z.extractall(stage)
+            hits = [p for p in stage.rglob(exe_name)]
+            if not hits:
+                raise ValueError("no .exe in update package")
+            return "folder", hits[0].parent
+        new_exe = target_dir / (exe_name + ".new")
+        found = False
         for info in z.infolist():
             name = Path(info.filename).name
             if info.is_dir() or not name:
@@ -78,12 +102,16 @@ def unpack(zip_path: Path, target_dir: Path, exe_name: str) -> Path:
                     pass  # Anleitung gerade geöffnet o. Ä. – unwichtig
     if not found:
         raise ValueError("no .exe in update package")
-    return new_exe
+    return "exe", new_exe
 
 
-def helper_script(pid: int, exe: Path, new_exe: Path) -> str:
-    """Wartet aufs Programmende, tauscht die .exe (bis zu 60 Versuche) und startet sie neu."""
-    return "\r\n".join([
+def helper_script(pid: int, exe: Path, source: Path, kind: str = "exe") -> str:
+    """Wartet aufs Programmende, tauscht das Programm aus und startet es neu.
+
+    kind="exe": .exe ersetzen (bis zu 60 Versuche). kind="folder": alten _internal-Ordner löschen und den neuen
+    Programmordner hineinkopieren (eigene Dateien wie laender.json bleiben erhalten)."""
+    app = exe.parent
+    lines = [
         "@echo off",
         "chcp 65001 >nul",
         "set n=0",
@@ -93,27 +121,40 @@ def helper_script(pid: int, exe: Path, new_exe: Path) -> str:
         "timeout /t 1 /nobreak >nul",
         "goto wait",
         ":swap",
-        f'move /y "{new_exe}" "{exe}" >nul 2>&1',
-        "if not errorlevel 1 goto start",
-        "set /a n+=1",
-        "if %n% geq 60 goto end",
-        "timeout /t 1 /nobreak >nul",
-        "goto swap",
-        ":start",
-        f'start "" "{exe}"',
-        ":end",
-        'del "%~f0"',
-        "",
-    ])
+    ]
+    if kind == "folder":
+        lines += [
+            f'if exist "{app}\\_internal" rmdir /s /q "{app}\\_internal" >nul 2>&1',
+            f'if not exist "{app}\\_internal" goto copy',
+            "set /a n+=1",
+            "if %n% geq 60 goto end",
+            "timeout /t 1 /nobreak >nul",
+            "goto swap",
+            ":copy",
+            f'robocopy "{source}" "{app}" /E /MOVE /R:30 /W:1 /NFL /NDL /NJH /NJS /NP >nul',
+            "if errorlevel 8 goto end",
+            f'rmdir /s /q "{app}\\{STAGE_DIR}" >nul 2>&1',
+        ]
+    else:
+        lines += [
+            f'move /y "{source}" "{exe}" >nul 2>&1',
+            "if not errorlevel 1 goto start",
+            "set /a n+=1",
+            "if %n% geq 60 goto end",
+            "timeout /t 1 /nobreak >nul",
+            "goto swap",
+        ]
+    lines += [":start", f'start "" "{exe}"', ":end", 'del "%~f0"', ""]
+    return "\r\n".join(lines)
 
 
-def launch_swap(new_exe: Path) -> None:
+def launch_swap(source: Path, kind: str = "exe") -> None:
     """Startet das Hilfsskript; danach muss sich der Generator beenden."""
     exe = exe_path()
     if not exe:
         raise RuntimeError("not running as .exe")
     bat = Path(tempfile.gettempdir()) / f"fm27_update_{os.getpid()}.bat"
-    bat.write_text(helper_script(os.getpid(), exe, new_exe), encoding="utf-8")
+    bat.write_text(helper_script(os.getpid(), exe, source, kind), encoding="utf-8")
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith(("_MEI", "_PYI"))}
     env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"  # neue .exe soll ihren eigenen Temp-Ordner anlegen
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)

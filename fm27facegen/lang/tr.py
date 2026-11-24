@@ -368,6 +368,7 @@ ETHNICITY = {
     "ASIA_S": "Güney Asyalı (Hindistan, Pakistan, Bangladeş)",
     "ASIA_C": "Orta Asyalı",
     "PACIFIC": "Pasifik Adalı / Polinezyalı / Maori",
+    "MELANESIAN": "Melanezyalı (Papua Yeni Gine, Fiji, Solomon Adaları)",
     "MIXED": "Karışık (ör. Afrikalı-Avrupalı)",
 }
 

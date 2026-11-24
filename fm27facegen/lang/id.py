@@ -368,6 +368,7 @@ ETHNICITY = {
     "ASIA_S": "Asia Selatan (India, Pakistan, Bangladesh)",
     "ASIA_C": "Asia Tengah",
     "PACIFIC": "Kepulauan Pasifik / Polinesia / Māori",
+    "MELANESIAN": "Melanesia (Papua Nugini, Fiji, Kepulauan Solomon)",
     "MIXED": "Campuran (mis. Afrika-Eropa)",
 }
 

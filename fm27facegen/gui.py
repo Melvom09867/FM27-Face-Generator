@@ -237,6 +237,12 @@ class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(f"{APP_NAME} {__version__}")
+        try:  # Fußball-Symbol für Fenster und Taskleiste
+            from .icon import make_icon
+            self._icons = [ImageTk.PhotoImage(make_icon(sz)) for sz in (256, 48, 32, 16)]
+            self.iconphoto(True, *self._icons)
+        except Exception:  # noqa: BLE001
+            pass
         self.geometry("1240x820")
         self.minsize(1040, 680)
 
@@ -292,12 +298,14 @@ class App(tk.Tk):
                 and self.cfg.backend.backend == StableDiffusionWebUIBackend.name:
             self.after(800, lambda: self._forge_start(True))
         self.bind("<F2>", self._on_key_rename)
+        self.bind("<Button-1>", self._click_anywhere, add="+")
         self.bind("<Control-c>", self._on_key_copy)
         self.bind("<Control-C>", self._on_key_copy)
         threading.Thread(target=self._fd_watch, daemon=True).start()
         if self.fd_info:
             self.status.config(text=t("fd.found_short", v=self.fd_info.version or "?"))
         self.after(100, self._poll)
+        self.after(150, self._bring_to_front)
         if self.warnings:
             self.after(500, lambda: messagebox.showwarning(APP_NAME, "\n".join(self.warnings)))
 
@@ -377,12 +385,21 @@ class App(tk.Tk):
         return None
 
     def _bind_typeahead(self, cb: ttk.Combobox, var: str) -> None:
-        """Auswahlfelder: Tippen springt zum passenden Eintrag, Enter übernimmt."""
+        """Auswahlfelder: Tippen öffnet die Liste und springt zum passenden Eintrag, Enter übernimmt."""
         state = {"buf": "", "t": 0.0}
 
         def on_key(e):
             if e.keysym in ("Return", "KP_Enter"):
+                picked = self._list_pick(cb)
+                if picked:
+                    self.v[var].set(picked)
+                self._unpost_list(cb)
                 cb.event_generate("<<ComboboxSelected>>")
+                return "break"
+            if e.keysym in ("Down", "Up"):
+                return self._list_nav(cb, 1 if e.keysym == "Down" else -1)
+            if e.keysym == "Escape":
+                self._unpost_list(cb)
                 return "break"
             if e.keysym == "BackSpace":
                 state["buf"] = state["buf"][:-1]
@@ -397,17 +414,152 @@ class App(tk.Tk):
             if hit and hit != self.v[var].get():
                 self.v[var].set(hit)
                 cb.event_generate("<<ComboboxSelected>>")
+            self._post_list(cb, hit or self.v[var].get())
             return "break"
 
         cb.bind("<KeyPress>", on_key)
+        cb.bind("<FocusOut>", lambda e: self._list_focus_out(cb, None), add="+")
 
     def _bind_search_field(self, cb: ttk.Combobox, var: str) -> None:
-        """Länderfelder: Tippen filtert die Liste, Enter übernimmt den besten Treffer, ↓ öffnet die Liste."""
+        """Länder-/Persönlichkeitsfelder: Tippen filtert und öffnet die Liste (bester Treffer markiert),
+        ↑/↓ wählt in der Liste, Enter übernimmt, Esc schließt. Ein Klick ins Feld markiert den alten Text,
+        damit Tippen ihn ersetzt (sonst entstünde z. B. 'KeineSöl')."""
         cb.bind("<KeyRelease>", lambda e: self._filter_country(e, var))
         cb.bind("<Return>", lambda e: self._confirm_country(var))
         cb.bind("<KP_Enter>", lambda e: self._confirm_country(var))
+        cb.bind("<Down>", lambda e: self._list_nav(cb, 1, var))
+        cb.bind("<Up>", lambda e: self._list_nav(cb, -1, var))
+        cb.bind("<Escape>", lambda e: self._unpost_list(cb) or "break")
         cb.bind("<<ComboboxSelected>>", lambda e: self._country_selected(var), add="+")
-        cb.bind("<FocusOut>", lambda e: self._validate_country(var))
+        cb.bind("<FocusIn>", lambda e: self._select_all_on_focus(cb))
+        cb.bind("<FocusOut>", lambda e: self._list_focus_out(cb, var))
+
+    # ---- Aufklappliste beim Tippen, ohne der Tastatur den Fokus zu nehmen
+    _posted: ttk.Combobox | None = None
+    _refocus = False
+
+    def _popdown(self, cb: ttk.Combobox) -> tuple[str, str]:
+        pd = str(cb.tk.call("ttk::combobox::PopdownWindow", cb))
+        return pd, pd + ".f.l"
+
+    def _post_list(self, cb: ttk.Combobox, highlight: str | None = None) -> None:
+        tkc = cb.tk
+        try:
+            if self._posted is not None and self._posted is not cb:
+                self._unpost_list(self._posted)
+            pd, lb = self._popdown(cb)
+            tkc.call("ttk::combobox::ConfigureListbox", cb)
+            cb.update_idletasks()
+            tkc.call("ttk::combobox::PlacePopdown", cb, pd)
+            if not getattr(cb, "_fwd_bound", False):  # Tasten, die in der Liste landen, ans Eingabefeld geben
+                cmd = cb.register(lambda keysym, cb=cb: self._forward_key(cb, keysym))
+                tkc.call("bind", lb, "<KeyPress>", "if {[%s %%K] eq {break}} break" % cmd)
+                cb._fwd_bound = True
+            if not int(tkc.call("winfo", "ismapped", pd)):
+                tkc.call("wm", "transient", pd, str(cb.winfo_toplevel()))
+                tkc.call("wm", "attributes", pd, "-topmost", 1)
+                tkc.call("wm", "deiconify", pd)
+                tkc.call("raise", pd)
+                for ms in (10, 60, 200):  # Tk greift sich beim Öffnen Maus + Tastatur – zurückholen
+                    cb.after(ms, lambda: self._keep_focus(cb, pd))
+            self._posted = cb
+            self._highlight(cb, highlight)
+        except tk.TclError:
+            pass
+
+    def _forward_key(self, cb: ttk.Combobox, keysym: str) -> str:
+        if keysym in ("Return", "KP_Enter", "Escape", "Tab") or self._posted is not cb:
+            return ""  # Standardverhalten der Liste (übernehmen / schließen)
+        self._refocus = True
+        cb.focus_set()
+        cb.event_generate("<KeyPress>", keysym=keysym)
+        cb.event_generate("<KeyRelease>", keysym=keysym)
+        cb.after(120, lambda: setattr(self, "_refocus", False))
+        return "break"
+
+    def _highlight(self, cb: ttk.Combobox, label: str | None) -> None:
+        _pd, lb = self._popdown(cb)
+        values = list(cb["values"])
+        cb.tk.call(lb, "selection", "clear", 0, "end")
+        if label in values:
+            i = values.index(label)
+            cb.tk.call(lb, "selection", "set", i)
+            cb.tk.call(lb, "activate", i)
+            cb.tk.call(lb, "see", i)
+
+    def _keep_focus(self, cb: ttk.Combobox, pd: str) -> None:
+        if self._posted is not cb:
+            return
+        try:
+            cb.tk.call("grab", "release", pd)
+            self._refocus = True
+            cb.focus_set()
+            if str(cb.cget("state")) != "readonly":
+                cb.selection_clear()
+                cb.icursor("end")
+            cb.after(120, lambda: setattr(self, "_refocus", False))
+        except tk.TclError:
+            pass
+
+    def _unpost_list(self, cb: ttk.Combobox) -> None:
+        try:
+            cb.tk.call("ttk::combobox::Unpost", cb)
+            cb.state(["!pressed"])
+        except tk.TclError:
+            pass
+        if self._posted is cb:
+            self._posted = None
+
+    def _list_pick(self, cb: ttk.Combobox) -> str | None:
+        """Markierter Eintrag der offenen Liste (oder None)."""
+        if self._posted is not cb:
+            return None
+        try:
+            _pd, lb = self._popdown(cb)
+            sel = cb.tk.call(lb, "curselection")
+            sel = [sel] if isinstance(sel, int) else list(sel)
+            values = list(cb["values"])
+            return values[int(sel[0])] if sel and int(sel[0]) < len(values) else None
+        except (tk.TclError, ValueError):
+            return None
+
+    def _list_nav(self, cb: ttk.Combobox, step: int, var: str | None = None) -> str:
+        values = list(cb["values"])
+        if not values:
+            return "break"
+        if self._posted is not cb:
+            current = self.v[var].get() if var else cb.get()
+            self._post_list(cb, current if current in values else None)
+            return "break"
+        cur = self._list_pick(cb)
+        i = values.index(cur) + step if cur in values else (0 if step > 0 else len(values) - 1)
+        i = max(0, min(len(values) - 1, i))
+        self._highlight(cb, values[i])
+        return "break"
+
+    def _select_all_on_focus(self, cb: ttk.Combobox) -> None:
+        if self._refocus:
+            return
+        cb.after_idle(lambda: (cb.selection_range(0, "end"), cb.icursor("end")))
+
+    def _list_focus_out(self, cb: ttk.Combobox, var: str | None) -> None:
+        def check():
+            try:
+                focus = str(cb.tk.call("focus"))
+            except tk.TclError:
+                focus = ""
+            if focus == str(cb) or focus.startswith(str(cb) + ".popdown"):
+                return  # Fokus nur kurz in der eigenen Liste
+            self._unpost_list(cb)
+            if var is not None:
+                self._validate_country(var)
+        cb.after(150, check)
+
+    def _click_anywhere(self, event) -> None:
+        """Klick irgendwo anders im Fenster schließt eine beim Tippen geöffnete Liste."""
+        cb = self._posted
+        if cb is not None and event.widget is not cb:
+            self._unpost_list(cb)
 
     def _set_options(self, var: str, keys, labeler: Callable[[str], str]) -> None:
         keys = list(keys)
@@ -718,18 +870,18 @@ class App(tk.Tk):
         win.grab_set()
         exe = selfupdate.exe_path()
 
-        def finish(error: str | None, new_exe: Path | None) -> None:
+        def finish(error: str | None, new: tuple[str, Path] | None) -> None:
             if win.winfo_exists():
                 win.destroy()
             if cancel.is_set():
                 return
-            if error or not new_exe:
+            if error or not new:
                 if messagebox.askyesno(APP_NAME, t("upd.failed", e=error or "?")):
                     import webbrowser
                     webbrowser.open(info["url"])
                 return
             try:
-                selfupdate.launch_swap(new_exe)
+                selfupdate.launch_swap(new[1], new[0])
             except Exception as exc:  # noqa: BLE001
                 messagebox.showerror(APP_NAME, t("upd.failed", e=exc))
                 return
@@ -745,8 +897,8 @@ class App(tk.Tk):
                                     progress=lambda f: self.after(0, lambda: bar.winfo_exists() and bar.configure(
                                         value=f * 100)),
                                     cancelled=cancel.is_set)
-                new_exe = selfupdate.unpack(zpath, exe.parent, exe.name)
-                self.after(0, lambda: finish(None, new_exe))
+                new = selfupdate.unpack(zpath, exe.parent, exe.name)
+                self.after(0, lambda: finish(None, new))
             except InterruptedError:
                 self.after(0, lambda: finish(None, None))
             except Exception as exc:  # noqa: BLE001
@@ -1058,7 +1210,7 @@ class App(tk.Tk):
         right_tab = self.right_nb.index("current")
         left_tab = self.left_nb.index("current")
         self.root_frame.destroy()
-        self.thumb_widgets, self.thumbs, self.players = [], [], {}
+        self.thumb_widgets, self.thumbs, self.thumb_badge, self.players = [], [], [], {}
         self._build()
         self._load_into_ui()
         for p in players:
@@ -1204,12 +1356,20 @@ class App(tk.Tk):
         starts = [k for k in real if k2l[k].casefold().startswith(text)]
         contains = [k for k in real if text in k2l[k].casefold() and k not in starts]
         hits = (starts + contains) or real
-        self.ocb[var]["values"] = ([k2l[NO_SECOND]] if with_none else []) + [k2l[k] for k in hits]
+        cb = self.ocb[var]
+        cb["values"] = ([k2l[NO_SECOND]] if with_none else []) + [k2l[k] for k in hits]
+        if event.keysym in ("Control_L", "Control_R", "Alt_L", "Alt_R") or (event.state & 0x4):
+            return
+        self._post_list(cb, k2l[hits[0]] if text and (starts or contains) else None)
 
     def _confirm_country(self, var: str) -> str:
         """Enter im Länderfeld: besten Treffer übernehmen."""
         k2l, l2k, keys = self.omap[var]
         cb = self.ocb[var]
+        picked = self._list_pick(cb)  # in der offenen Liste markierter Eintrag hat Vorrang
+        if picked:
+            self.v[var].set(picked)
+        self._unpost_list(cb)
         text = self.v[var].get().strip()
         if text in l2k:
             key = l2k[text]
@@ -1544,6 +1704,17 @@ class App(tk.Tk):
                 n = len(self.gal["folder"].all_faces)
                 self.folder_info.config(text=t("gal.count", n=n) if n else t("gal.empty"))
 
+    def _bring_to_front(self) -> None:
+        """Beim Start gleich sichtbar im Vordergrund – nicht erst über die Taskleiste holen müssen."""
+        try:
+            self.deiconify()
+            self.lift()
+            self.attributes("-topmost", True)
+            self.focus_force()
+            self.after(600, lambda: self.attributes("-topmost", False))
+        except tk.TclError:
+            pass
+
     # ================================================================== FaceDrop (nur lesen)
     def _detect_facedrop(self) -> None:
         manual = Path(self.cfg.facedrop_dir) if self.cfg.facedrop_dir else None
@@ -1649,14 +1820,19 @@ class App(tk.Tk):
 
     def _fd_watch(self) -> None:
         """Hintergrund: FaceDrops Ordner beobachten (beim Start und dann alle paar Sekunden)."""
-        wait = 2.0
+        wait = 1.0
+        known: set[str] = set()
         while not self.fd_stop.wait(wait):
-            wait = 6.0
+            wait = 2.0  # alle 2 s – dank Zwischenspeicher (Hash je Datei) kostet das kaum etwas
             fd = self.fd_dir
             if not fd:
                 continue
             try:
                 index = facedrop.facedrop_index(fd)
+                new = [p for h, p in index.items() if h not in known]
+                if known and new:
+                    self._fd_log(f"neu bei FaceDrop: {', '.join(p.name for p in new[:5])}")
+                known = set(index)
                 self.q.put(("fdindex", 0, 0, None, index, "", None))
                 if self.cfg.facedrop_cleanup != "off" and not self.fd_asking:
                     own = list_folder_images(self.cfg.output_dir, 20000)
@@ -1679,9 +1855,37 @@ class App(tk.Tk):
                 pass
         self.fd_sizes = sizes
         if self.gmode == "new" or self.gal_src == "own":
-            sel = self.selected
-            self._rebuild_gallery()
-            self._select(sel if sel is not None else -1, keep_marks=True)
+            self._refresh_badges()
+
+    def _refresh_badges(self) -> None:
+        """Nur die Vorschaubilder neu zeichnen, deren Haken (✓ im Spiel) sich geändert hat – nicht die ganze
+        Galerie (das dauerte bei vielen Bildern mehrere Sekunden)."""
+        if not hasattr(self, "thumb_badge"):
+            return
+        for idx, lbl in enumerate(self.thumb_widgets):
+            if idx >= len(self.faces):
+                break
+            face = self.faces[idx]
+            badge = not facedrop.is_facedrop_path(face.path) and self._in_game(face)
+            if idx < len(self.thumb_badge) and self.thumb_badge[idx] != badge:
+                thumb = _on_checker(face.image, THUMB)
+                photo = ImageTk.PhotoImage(_ingame_badge(thumb) if badge else thumb)
+                self.thumbs[idx] = photo
+                self.thumb_badge[idx] = badge
+                lbl.config(image=photo)
+        if self.selected is not None:
+            self._select(self.selected, keep_marks=True)
+
+    def _fd_log(self, text: str) -> None:
+        """Kleines Protokoll (%APPDATA%\\FM27FaceGenerator\\facedrop.log) – hilft, Verzögerungen nachzuvollziehen."""
+        try:
+            log = settings_mod.config_dir() / "facedrop.log"
+            if log.exists() and log.stat().st_size > 200_000:
+                log.write_text("", encoding="utf-8")
+            with log.open("a", encoding="utf-8") as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + text + "\n")
+        except OSError:
+            pass
 
     def _handle_dups(self, dups: dict[Path, Path]) -> None:
         """Eigene Bilder, die FaceDrop schon (identisch) übernommen hat: nach Rückfrage in den Papierkorb."""
@@ -1693,9 +1897,15 @@ class App(tk.Tk):
             if len(dups) > 8:
                 names += "\n…"
             self.fd_asking = True
+            self._fd_log(f"Frage gezeigt: {len(dups)} doppelte Bild(er)")
             try:
-                ok = messagebox.askyesno(APP_NAME, t("msg.fd_dups", n=len(dups), names=names))
+                # Fenster nach vorn holen, sonst liegt die Frage evtl. unsichtbar hinter FM
+                self.deiconify()
+                self.lift()
+                self.attributes("-topmost", True)
+                ok = messagebox.askyesno(APP_NAME, t("msg.fd_dups", n=len(dups), names=names), parent=self)
             finally:
+                self.attributes("-topmost", False)
                 self.fd_asking = False
             if not ok:
                 self.fd_declined |= set(dups)
@@ -1800,16 +2010,20 @@ class App(tk.Tk):
     def _rebuild_gallery(self) -> None:
         for w in self.thumb_widgets:
             w.destroy()
-        self.thumb_widgets, self.thumbs = [], []
+        self.thumb_widgets, self.thumbs, self.thumb_badge = [], [], []
         self._append_thumbs(0)
 
     def _append_thumbs(self, start: int) -> None:
         for idx in range(start, len(self.faces)):
             face = self.faces[idx]
             thumb = _on_checker(face.image, THUMB)
-            if not facedrop.is_facedrop_path(face.path) and self._in_game(face):
+            badge = not facedrop.is_facedrop_path(face.path) and self._in_game(face)
+            if badge:
                 thumb = _ingame_badge(thumb)
             photo = ImageTk.PhotoImage(thumb)
+            if not hasattr(self, "thumb_badge"):
+                self.thumb_badge = []
+            self.thumb_badge.append(badge)
             lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background="#f4f4f4",
                            cursor="hand2")
             lbl.bind("<Button-1>", lambda e, i=idx: self._click_thumb(e, i))
@@ -2196,6 +2410,8 @@ def selftest() -> int:
     ok = ok and t("btn.ok") == "확인" and country("Deutschland") == "독일" and resolve_country("Allemagne") == "Deutschland"
     set_language("zh")  # zusätzliche Sprachen (fm27facegen/lang) müssen ebenfalls in der .exe sein
     ok = ok and t("btn.ok") == "确定" and country("Deutschland") == "德国"
+    from .icon import make_icon  # Programm-Symbol
+    ok = ok and make_icon(32).size == (32, 32)
     set_language("pt-PT")
     ok = ok and t("btn.delete") == "Eliminar" and t("btn.ok") == "OK"
     set_language("de")
@@ -2223,6 +2439,11 @@ def main() -> None:
         try:
             import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:  # noqa: BLE001
+            pass
+        try:  # eigene Kennung: Taskleiste zeigt Symbol + Namen des Generators statt "Python"
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("FM27.FaceGenerator")
         except Exception:  # noqa: BLE001
             pass
     App().mainloop()

@@ -8,7 +8,7 @@ the player in the game with the **FaceDrop** mod.
 
 **Features at a glance**
 
-- **Country of birth** (131 countries) and **ethnicity** – automatically matched to the country or set manually
+- **Country of birth** (all 211 FIFA countries) and **ethnicity** – automatically matched to the country or set manually
 - **Dual heritage**, e.g. "born in Germany, parents from Ghana" or "one parent from Morocco"
 - **Age** (also as a range), **gender**, hair colour, hairstyle, facial hair, expression, clothing/colour, background
 - **Import the player list from FM** – a matching image for every youth player, named after the player
@@ -31,7 +31,7 @@ You do **not** need to install Python or anything else.
 
 **Option A – Release (easiest):**
 1. On this project's GitHub page, click **Releases** on the right.
-2. Download **`FM27-FaceGenerator-windows.zip`** from the latest release.
+2. Download **`FM27-FaceGenerator-win.zip`** from the latest release.
 
 **Option B – from the automatic build:**
 1. Be signed in to GitHub (downloads from "Actions" require an account).
@@ -44,12 +44,13 @@ You do **not** need to install Python or anything else.
 1. In your Downloads folder, **right-click the ZIP → "Extract All…"**.
 2. Move the extracted folder to a permanent place, e.g. `C:\Tools\FM27 Face Generator`
    or simply your desktop. (Don't run it directly from inside the ZIP!)
-3. The folder contains: `FM27-FaceGenerator.exe`, this `README.md` (English), the German guide
-   `LIESMICH.md` and `laender.beispiel.json`.
+3. The **"FM27 Face Generator"** folder contains: `FM27-FaceGenerator.exe`, the `_internal` subfolder (part of
+   the program – don't delete or move it!), this `README.md` (English), the German guide `LIESMICH.md`, the patch
+   notes and `laender.beispiel.json`. Always keep the **whole folder** together.
 
 ### 3. First start
 
-1. **Double-click** `FM27-FaceGenerator.exe`. The first start takes a few seconds.
+1. **Double-click** `FM27-FaceGenerator.exe`. The generator opens in the foreground after a few seconds.
 2. If **"Windows protected your PC"** (SmartScreen) appears:
    click **"More info"** → **"Run anyway"**. This happens because the program isn't commercially code-signed.
 3. If your **antivirus** complains: some scanners react to self-extracting programs (PyInstaller).
@@ -89,7 +90,8 @@ personalities also show the English FM name, e.g. "Mercenario (Mercenary)".
 
 When a new version is available, a notice appears at startup:
 
-- **"Update now"** downloads the new version, replaces `FM27-FaceGenerator.exe` and restarts the generator – done.
+- **"Update now"** downloads the new version, replaces the program in its folder and restarts the generator – done.
+  Your settings and own files such as `laender.json` are kept.
   (Only works if the program folder is writable, e.g. not inside `C:\Program Files`. Otherwise the button is
   missing and the download page remains.)
 - **"Open download page"** opens the page in your browser.
@@ -99,7 +101,13 @@ When a new version is available, a notice appears at startup:
 longer announced – but the next newer one is. (Turn off: **Output** tab → "Check for updates at startup".
 Only a request to GitHub is sent, no personal data.)
 
-Manually: download the new version and simply replace the old `FM27-FaceGenerator.exe`.
+Manually: download the new version, extract it and copy the contents of the "FM27 Face Generator" folder over
+the old program folder (or replace the old folder with the new one).
+
+> **Once when moving from 1.8.7.1 or older to 1.8.7.2+:** from 1.8.7.2 the generator is a program folder
+> (EXE + `_internal`) instead of a single EXE – it starts much faster. Please do this one switch **manually**:
+> download the new ZIP, extract it, delete the old `FM27-FaceGenerator.exe` and use the new folder. After that
+> "Update now" works automatically again.
 What changed is listed in `PatchNotes.txt`.
 
 **Test switch:** with **"Include test versions"** (**Output** tab, next to "Check for updates at startup") the
@@ -398,8 +406,8 @@ Countries the program doesn't know still work – the AI then decides from the c
 
 ## Keyboard use
 
-- **Country and personality fields**: type (e.g. `Port` or `merc`) → **Enter** takes the best match (Portugal). **↓** opens the filtered list.
-- **All other drop-downs**: click and type – jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
+- **Country and personality fields**: click into the field and type (e.g. `Ivo` or `merc`) – the filtered list opens with the best match highlighted (Ivory Coast). **↑/↓** moves within the list, **Enter** confirms, **Esc** closes.
+- **All other drop-downs**: click and type – the list opens and jumps to the matching entry (e.g. `bl` → Blond/Black), **Enter** confirms.
 - **Gallery**: **F2** = rename, **Del** = Recycle Bin, **Ctrl+C** = copy image (in FM: Ctrl+V), **Ctrl/Shift + click** = select several.
 
 ## Shirt in club colours
@@ -435,7 +443,7 @@ later just pick it from the list.
 
 ## Building it yourself (for tinkerers)
 
-Install Python 3.10+ and double-click `build.bat` → `dist\FM27-FaceGenerator.exe`.
+Install Python 3.10+ and double-click `build.bat` → folder `dist\FM27-FaceGenerator\` (with the EXE).
 To run without building an EXE: `pip install -r requirements.txt` and `python run.py`.
 
 **Adding or improving translations:** all texts live in `fm27facegen/locales.py` (one line per text with the
