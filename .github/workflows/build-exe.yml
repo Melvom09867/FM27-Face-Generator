@@ -85,3 +85,12 @@ jobs:
             Download `FM27-FaceGenerator-win.zip` below, extract it and run `FM27-FaceGenerator.exe` in the "FM27 Face Generator" folder. Full guide: README.md.
             Languages: 20 (all FM27 languages except Arabic) – translations except German are AI-generated.
           files: FM27-FaceGenerator-win.zip
+
+      # Gab es den Tag schon als Testversion, ändert die Aktion oben den Status nicht – hier ausdrücklich
+      # zur offiziellen (neuesten) Version machen.
+      - name: Als offizielle Version markieren
+        if: inputs.release_tag != '' && inputs.prerelease == false
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ inputs.release_tag }}" --repo "${{ github.repository }}" --prerelease=false --latest
