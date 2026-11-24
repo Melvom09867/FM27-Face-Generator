@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "AI 翻译",
+    "status.fd_open_hint": "提示：在游戏中删除图片最稳妥的方法是将鼠标移到头像上并按 Ctrl+Del（FaceDrop）。",
     "lang.title": "选择语言",
     "lang.label": "语言：",
     "lang.dont_ask": "启动时不再询问",

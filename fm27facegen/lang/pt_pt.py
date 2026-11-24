@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "traduzido por IA",
+    "status.fd_open_hint": "Dica: no jogo, a forma mais limpa de remover uma imagem é passar o rato sobre o retrato + Ctrl+Del (FaceDrop).",
     "upd.text": "Há uma nova versão do FM27 Face Generator: {new}\nEstá a usar a versão {cur}.",
     "upd.page": "Abrir página de transferência",
     "upd.downloading": "A transferir a versão {v} …",

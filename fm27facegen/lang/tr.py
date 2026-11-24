@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "yapay zekâ çevirisi",
+    "status.fd_open_hint": "İpucu: oyunda bir görseli en temiz şekilde fareyi portreye getirip Ctrl+Del ile kaldırırsınız (FaceDrop).",
     "lang.title": "Dil seçin",
     "lang.label": "Dil:",
     "lang.dont_ask": "Başlangıçta bir daha sorma",

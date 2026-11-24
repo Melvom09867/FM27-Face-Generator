@@ -3,6 +3,15 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.3
+---------------
+- Drop-downs: typing now shows a suggestion list right below the field (like a browser search bar, at most 8
+  entries visible). It stays open while you keep typing – the built-in list closed immediately on Windows.
+  ↑/↓ selects, Enter confirms, Esc closes, clicking works too.
+- Gallery → FaceDrop: new "Open" button next to the career selection opens the career's folder in Explorer
+  (for "Real players" the FaceDrop folder).
+
+
 Version 1.8.7.2
 ---------------
 - All 211 FIFA countries available (previously 131), e.g. El Salvador, Cuba, Guatemala, Taiwan, Fiji, Moldova –

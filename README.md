@@ -167,7 +167,8 @@ backup after moving), it takes the one FaceDrop used last. Status and settings: 
 > **Important:** Nothing in FaceDrop's folders is **ever changed** – they are only read.
 
 - **Gallery → Show: Save folder | FaceDrop**: with "FaceDrop" you see the images that are already **in the game** –
-  per **career** (save game) or "Real players". The **player ID** is shown too. These images can be viewed,
+  per **career** (save game) or "Real players". **"Open"** next to the career selection opens the matching
+  folder in Explorer (to remove an image in the game, better: hover over the portrait + Ctrl+Del). The **player ID** is shown too. These images can be viewed,
   copied, dragged and used for an **ageing set** (the new images go to your save folder), but not renamed,
   deleted or re-rolled.
 - **✓ in the game**: your own images that FaceDrop has already taken over get a green check mark in the

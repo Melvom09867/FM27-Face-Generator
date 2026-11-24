@@ -166,7 +166,8 @@ einem Umzug), nimmt er den, den FaceDrop zuletzt benutzt hat. Anzeige und Einste
 > **Wichtig:** In FaceDrops Ordnern wird **nie etwas verändert** – dort wird nur gelesen.
 
 - **Galerie → Zeigen: Speicherort | FaceDrop**: Mit „FaceDrop“ siehst du die Bilder, die schon **im Spiel** sind –
-  je **Karriere** (Spielstand) oder „Echte Spieler“. Angezeigt wird auch die **Spieler-ID**. Diese Bilder lassen
+  je **Karriere** (Spielstand) oder „Echte Spieler“. **„Öffnen“** neben der Karriere-Auswahl öffnet den
+  passenden Ordner im Explorer (zum Entfernen im Spiel besser: Maus aufs Porträt + Strg+Entf). Angezeigt wird auch die **Spieler-ID**. Diese Bilder lassen
   sich ansehen, kopieren, ziehen und für ein **Alterungs-Set** nutzen (die neuen Bilder landen im Speicherort),
   aber nicht umbenennen, löschen oder neu würfeln.
 - **✓ im Spiel**: Eigene Bilder, die FaceDrop schon übernommen hat, bekommen in der Galerie des Generators einen

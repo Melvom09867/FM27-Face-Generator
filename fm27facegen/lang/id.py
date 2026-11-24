@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "diterjemahkan AI",
+    "status.fd_open_hint": "Tips: di game, cara paling rapi menghapus gambar adalah arahkan mouse ke potret + Ctrl+Del (FaceDrop).",
     "lang.title": "Pilih bahasa",
     "lang.label": "Bahasa:",
     "lang.dont_ask": "Jangan tanya lagi saat mulai",

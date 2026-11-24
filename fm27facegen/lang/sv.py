@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "AI-översatt",
+    "status.fd_open_hint": "Tips: i spelet tar du bort en bild bäst med musen på porträttet + Ctrl+Del (FaceDrop).",
     "lang.title": "Välj språk",
     "lang.label": "Språk:",
     "lang.dont_ask": "Fråga inte igen vid start",

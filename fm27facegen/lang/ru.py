@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "перевод ИИ",
+    "status.fd_open_hint": "Совет: в игре изображение лучше всего удалять так: мышь на портрет + Ctrl+Del (FaceDrop).",
     "lang.title": "Выбор языка",
     "lang.label": "Язык:",
     "lang.dont_ask": "Больше не спрашивать при запуске",

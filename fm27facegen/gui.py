@@ -224,6 +224,128 @@ class UpdateDialog(tk.Toplevel):
         self.destroy()
 
 
+# ====================================================================== Vorschlagsliste
+class SuggestList:
+    """Kleine Liste unter einem Eingabefeld (wie die Vorschläge einer Browser-Suchleiste).
+
+    Nimmt nie den Tastatur-Fokus: Man tippt im Feld weiter, ↑/↓ wählt, Enter übernimmt, Esc schließt.
+    Höchstens MAX_ROWS Zeilen sind sichtbar, der Rest per Mausrad."""
+
+    MAX_ROWS = 8
+
+    def __init__(self, master: tk.Tk, on_choose: Callable[[ttk.Combobox, str], None]):
+        self.master, self.on_choose = master, on_choose
+        self.top: tk.Toplevel | None = None
+        self.lb: tk.Listbox | None = None
+        self.cb: ttk.Combobox | None = None
+        self.values: list[str] = []
+
+    def _ensure(self) -> None:
+        if self.top is not None and self.top.winfo_exists():
+            return
+        top = tk.Toplevel(self.master)
+        top.withdraw()
+        top.overrideredirect(True)
+        try:
+            top.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        font = ttk.Style(self.master).lookup("TCombobox", "font") or "TkDefaultFont"
+        lb = tk.Listbox(top, takefocus=0, exportselection=False, activestyle="none", relief="solid", borderwidth=1,
+                        highlightthickness=0, selectbackground="#2f7de1", selectforeground="white", font=font)
+        lb.pack(fill="both", expand=True)
+        lb.bind("<ButtonRelease-1>", self._click)
+        lb.bind("<Motion>", lambda e: self._select(lb.nearest(e.y)))
+        lb.bind("<MouseWheel>", lambda e: (lb.yview_scroll(int(-e.delta / 120), "units"), "break")[1])
+        lb.bind("<Button-4>", lambda e: (lb.yview_scroll(-1, "units"), "break")[1])
+        lb.bind("<Button-5>", lambda e: (lb.yview_scroll(1, "units"), "break")[1])
+        self.top, self.lb = top, lb
+        if sys.platform.startswith("win"):  # Windows: Liste darf beim Anzeigen nicht aktiv werden
+            try:
+                import ctypes
+                top.update_idletasks()
+                hwnd = int(top.wm_frame(), 16)
+                gwl_exstyle, ws_ex_noactivate, ws_ex_toolwindow = -20, 0x08000000, 0x00000080
+                u32 = ctypes.windll.user32
+                style = u32.GetWindowLongW(hwnd, gwl_exstyle)
+                u32.SetWindowLongW(hwnd, gwl_exstyle, style | ws_ex_noactivate | ws_ex_toolwindow)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def owns(self, path: str) -> bool:
+        return self.top is not None and bool(path) and path.startswith(str(self.top))
+
+    def visible(self) -> bool:
+        try:
+            return self.top is not None and bool(self.top.winfo_ismapped())
+        except tk.TclError:
+            return False
+
+    def show(self, cb: ttk.Combobox, values: list[str], highlight: str | None = None) -> None:
+        self._ensure()
+        assert self.top is not None and self.lb is not None
+        self.cb, self.values = cb, list(values)
+        self.lb.delete(0, "end")
+        self.lb.insert("end", *self.values)
+        self.lb.configure(height=min(self.MAX_ROWS, len(self.values)))
+        cb.update_idletasks()
+        self.top.update_idletasks()
+        x, y = cb.winfo_rootx(), cb.winfo_rooty() + cb.winfo_height()
+        w, h = max(cb.winfo_width(), 120), self.lb.winfo_reqheight()
+        self.top.geometry(f"{w}x{h}+{x}+{y}")
+        if not self.top.winfo_ismapped():
+            self.top.deiconify()
+        self.top.lift()
+        self.highlight(highlight)
+
+    def _select(self, i: int) -> None:
+        if self.lb is None or not self.values:
+            return
+        i = max(0, min(len(self.values) - 1, i))
+        self.lb.selection_clear(0, "end")
+        self.lb.selection_set(i)
+        self.lb.activate(i)
+        self.lb.see(i)
+
+    def highlight(self, label: str | None) -> None:
+        if self.lb is None:
+            return
+        self.lb.selection_clear(0, "end")
+        if label in self.values:
+            self._select(self.values.index(label))
+        else:
+            self.lb.yview_moveto(0)
+
+    def current(self) -> str | None:
+        if self.lb is None or not self.visible():
+            return None
+        sel = self.lb.curselection()
+        return self.values[sel[0]] if sel and sel[0] < len(self.values) else None
+
+    def move(self, step: int) -> None:
+        cur = self.current()
+        if cur in self.values:
+            self._select(self.values.index(cur) + step)
+        elif self.values:
+            self._select(0 if step > 0 else len(self.values) - 1)
+
+    def hide(self) -> None:
+        try:
+            if self.top is not None and self.top.winfo_exists():
+                self.top.withdraw()
+        except tk.TclError:
+            pass
+        self.cb = None
+
+    def _click(self, event) -> None:
+        if self.lb is None or self.cb is None or not self.values:
+            return
+        i = self.lb.nearest(event.y)
+        label, cb = self.values[i], self.cb
+        self.hide()
+        self.on_choose(cb, label)
+
+
 # ====================================================================== Hauptfenster
 class App(tk.Tk):
     # Galerie-Daten des gerade sichtbaren Tabs ('Neu erstellt' oder 'Galerie')
@@ -299,6 +421,8 @@ class App(tk.Tk):
             self.after(800, lambda: self._forge_start(True))
         self.bind("<F2>", self._on_key_rename)
         self.bind("<Button-1>", self._click_anywhere, add="+")
+        self.bind("<Configure>", self._on_root_configure, add="+")
+        self.bind("<Unmap>", lambda e: self._unpost_list() if e.widget is self else None, add="+")
         self.bind("<Control-c>", self._on_key_copy)
         self.bind("<Control-C>", self._on_key_copy)
         threading.Thread(target=self._fd_watch, daemon=True).start()
@@ -434,108 +558,60 @@ class App(tk.Tk):
         cb.bind("<FocusIn>", lambda e: self._select_all_on_focus(cb))
         cb.bind("<FocusOut>", lambda e: self._list_focus_out(cb, var))
 
-    # ---- Aufklappliste beim Tippen, ohne der Tastatur den Fokus zu nehmen
+    # ---- Vorschlagsliste beim Tippen (wie bei einer Suchleiste im Browser)
+    # Eigene kleine Liste unter dem Feld statt der eingebauten Aufklappliste: Sie nimmt nie den Tastatur-Fokus,
+    # daher kann Windows sie nicht sofort wieder schließen (das passierte mit der eingebauten Liste).
     _posted: ttk.Combobox | None = None
     _refocus = False
 
-    def _popdown(self, cb: ttk.Combobox) -> tuple[str, str]:
-        pd = str(cb.tk.call("ttk::combobox::PopdownWindow", cb))
-        return pd, pd + ".f.l"
+    def _suggest(self) -> "SuggestList":
+        if getattr(self, "_suggest_list", None) is None:
+            self._suggest_list = SuggestList(self, self._suggest_chosen)
+        return self._suggest_list
 
     def _post_list(self, cb: ttk.Combobox, highlight: str | None = None) -> None:
-        tkc = cb.tk
-        try:
-            if self._posted is not None and self._posted is not cb:
-                self._unpost_list(self._posted)
-            pd, lb = self._popdown(cb)
-            tkc.call("ttk::combobox::ConfigureListbox", cb)
-            cb.update_idletasks()
-            tkc.call("ttk::combobox::PlacePopdown", cb, pd)
-            if not getattr(cb, "_fwd_bound", False):  # Tasten, die in der Liste landen, ans Eingabefeld geben
-                cmd = cb.register(lambda keysym, cb=cb: self._forward_key(cb, keysym))
-                tkc.call("bind", lb, "<KeyPress>", "if {[%s %%K] eq {break}} break" % cmd)
-                cb._fwd_bound = True
-            if not int(tkc.call("winfo", "ismapped", pd)):
-                tkc.call("wm", "transient", pd, str(cb.winfo_toplevel()))
-                tkc.call("wm", "attributes", pd, "-topmost", 1)
-                tkc.call("wm", "deiconify", pd)
-                tkc.call("raise", pd)
-                for ms in (10, 60, 200):  # Tk greift sich beim Öffnen Maus + Tastatur – zurückholen
-                    cb.after(ms, lambda: self._keep_focus(cb, pd))
-            self._posted = cb
-            self._highlight(cb, highlight)
-        except tk.TclError:
-            pass
-
-    def _forward_key(self, cb: ttk.Combobox, keysym: str) -> str:
-        if keysym in ("Return", "KP_Enter", "Escape", "Tab") or self._posted is not cb:
-            return ""  # Standardverhalten der Liste (übernehmen / schließen)
-        self._refocus = True
-        cb.focus_set()
-        cb.event_generate("<KeyPress>", keysym=keysym)
-        cb.event_generate("<KeyRelease>", keysym=keysym)
-        cb.after(120, lambda: setattr(self, "_refocus", False))
-        return "break"
-
-    def _highlight(self, cb: ttk.Combobox, label: str | None) -> None:
-        _pd, lb = self._popdown(cb)
         values = list(cb["values"])
-        cb.tk.call(lb, "selection", "clear", 0, "end")
-        if label in values:
-            i = values.index(label)
-            cb.tk.call(lb, "selection", "set", i)
-            cb.tk.call(lb, "activate", i)
-            cb.tk.call(lb, "see", i)
-
-    def _keep_focus(self, cb: ttk.Combobox, pd: str) -> None:
-        if self._posted is not cb:
+        if not values:
+            self._unpost_list(cb)
             return
-        try:
-            cb.tk.call("grab", "release", pd)
-            self._refocus = True
-            cb.focus_set()
-            if str(cb.cget("state")) != "readonly":
-                cb.selection_clear()
-                cb.icursor("end")
-            cb.after(120, lambda: setattr(self, "_refocus", False))
-        except tk.TclError:
-            pass
+        self._suggest().show(cb, values, highlight)
+        self._posted = cb
 
-    def _unpost_list(self, cb: ttk.Combobox) -> None:
-        try:
-            cb.tk.call("ttk::combobox::Unpost", cb)
-            cb.state(["!pressed"])
-        except tk.TclError:
-            pass
-        if self._posted is cb:
+    def _unpost_list(self, cb: ttk.Combobox | None = None) -> None:
+        if cb is None or self._posted is cb:
+            if getattr(self, "_suggest_list", None) is not None:
+                self._suggest_list.hide()
             self._posted = None
 
     def _list_pick(self, cb: ttk.Combobox) -> str | None:
-        """Markierter Eintrag der offenen Liste (oder None)."""
+        """Markierter Eintrag der offenen Vorschlagsliste (oder None)."""
         if self._posted is not cb:
             return None
-        try:
-            _pd, lb = self._popdown(cb)
-            sel = cb.tk.call(lb, "curselection")
-            sel = [sel] if isinstance(sel, int) else list(sel)
-            values = list(cb["values"])
-            return values[int(sel[0])] if sel and int(sel[0]) < len(values) else None
-        except (tk.TclError, ValueError):
-            return None
+        return self._suggest().current()
 
     def _list_nav(self, cb: ttk.Combobox, step: int, var: str | None = None) -> str:
-        values = list(cb["values"])
-        if not values:
-            return "break"
         if self._posted is not cb:
             current = self.v[var].get() if var else cb.get()
+            values = list(cb["values"])
             self._post_list(cb, current if current in values else None)
             return "break"
-        cur = self._list_pick(cb)
-        i = values.index(cur) + step if cur in values else (0 if step > 0 else len(values) - 1)
-        i = max(0, min(len(values) - 1, i))
-        self._highlight(cb, values[i])
+        self._suggest().move(step)
         return "break"
+
+    def _suggest_chosen(self, cb: ttk.Combobox, label: str) -> None:
+        """Eintrag in der Vorschlagsliste angeklickt."""
+        self._posted = None
+        var = next((k for k, w in self.ocb.items() if w is cb), None)
+        if var is None:
+            return
+        self.v[var].set(label)
+        self._refocus = True
+        cb.focus_set()
+        cb.after(150, lambda: setattr(self, "_refocus", False))
+        if str(cb.cget("state")) == "readonly":
+            cb.event_generate("<<ComboboxSelected>>")
+        else:
+            self._confirm_country(var)
 
     def _select_all_on_focus(self, cb: ttk.Combobox) -> None:
         if self._refocus:
@@ -548,18 +624,39 @@ class App(tk.Tk):
                 focus = str(cb.tk.call("focus"))
             except tk.TclError:
                 focus = ""
-            if focus == str(cb) or focus.startswith(str(cb) + ".popdown"):
-                return  # Fokus nur kurz in der eigenen Liste
+            sl = getattr(self, "_suggest_list", None)
+            if focus == str(cb) or (sl is not None and sl.owns(focus)):
+                if sl is not None and sl.owns(focus):  # Windows hat der Liste den Fokus gegeben – zurückholen
+                    self._refocus = True
+                    cb.focus_force()
+                    cb.after(150, lambda: setattr(self, "_refocus", False))
+                return
+            self._ui_log(f"Liste geschlossen (Fokus ging zu {focus or 'anderem Programm'})")
             self._unpost_list(cb)
             if var is not None:
                 self._validate_country(var)
-        cb.after(150, check)
+        cb.after(120, check)
+
+    def _ui_log(self, text: str) -> None:
+        """Kleines Protokoll (%APPDATA%\\FM27FaceGenerator\\ui.log) – hilft bei Problemen unter Windows."""
+        try:
+            log = settings_mod.config_dir() / "ui.log"
+            if log.exists() and log.stat().st_size > 100_000:
+                log.write_text("", encoding="utf-8")
+            with log.open("a", encoding="utf-8") as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + text + "\n")
+        except OSError:
+            pass
 
     def _click_anywhere(self, event) -> None:
         """Klick irgendwo anders im Fenster schließt eine beim Tippen geöffnete Liste."""
         cb = self._posted
         if cb is not None and event.widget is not cb:
             self._unpost_list(cb)
+
+    def _on_root_configure(self, event) -> None:
+        if event.widget is self and self._posted is not None:  # Fenster verschoben/verkleinert
+            self._unpost_list()
 
     def _set_options(self, var: str, keys, labeler: Callable[[str], str]) -> None:
         keys = list(keys)
@@ -1031,6 +1128,7 @@ class App(tk.Tk):
         self.career_cb = ttk.Combobox(src, textvariable=self.v["fd_career"], state="readonly", width=24)
         self.career_cb.bind("<<ComboboxSelected>>", lambda e: self._load_folder())
         self.career_lbl = ttk.Label(src, text=t("gal.career"))
+        self.career_open = ttk.Button(src, text=t("btn.open"), command=self._open_career)
         row2 = ttk.Frame(self.head_folder)
         row2.pack(fill="x")
         ttk.Label(row2, text=t("gal.search")).pack(side="left")
@@ -1209,6 +1307,7 @@ class App(tk.Tk):
         players = list(self.players.values())
         right_tab = self.right_nb.index("current")
         left_tab = self.left_nb.index("current")
+        self._unpost_list()
         self.root_frame.destroy()
         self.thumb_widgets, self.thumbs, self.thumb_badge, self.players = [], [], [], {}
         self._build()
@@ -1746,9 +1845,11 @@ class App(tk.Tk):
             self._refresh_careers()
             self.career_lbl.pack(side="left", padx=(12, 4))
             self.career_cb.pack(side="left")
+            self.career_open.pack(side="left", padx=(6, 0))
         else:
             self.career_lbl.pack_forget()
             self.career_cb.pack_forget()
+            self.career_open.pack_forget()
 
     def _refresh_careers(self) -> None:
         """Karrieren aus FaceDrops Ordner (neueste zuerst) + 'Echte Spieler'."""
@@ -1770,6 +1871,16 @@ class App(tk.Tk):
         self.career_cb["values"] = labels
         if self.v["fd_career"].get() not in self.career_map:
             self.v["fd_career"].set(labels[0])
+
+    def _open_career(self) -> None:
+        """Ordner der gewählten Karriere (bzw. bei 'Echte Spieler' den FaceDrop-Ordner) im Explorer öffnen."""
+        if not self.fd_dir:
+            return
+        key = self._career_key()
+        folder = self.fd_dir / "karrieren" / key if key else self.fd_dir
+        if folder.is_dir():
+            open_path(folder)
+            self.status.config(text=t("status.fd_open_hint"))
 
     def _career_key(self) -> str:
         return getattr(self, "career_map", {}).get(self.v["fd_career"].get(), "")

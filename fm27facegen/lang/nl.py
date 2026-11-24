@@ -2,6 +2,7 @@
 # fmt: off
 STRINGS = {
     "lang.ai": "AI-vertaald",
+    "status.fd_open_hint": "Tip: in het spel verwijder je een afbeelding het netst met de muis op het portret + Ctrl+Del (FaceDrop).",
     "lang.title": "Taal kiezen",
     "lang.label": "Taal:",
     "lang.dont_ask": "Niet meer vragen bij het opstarten",
