@@ -44,11 +44,11 @@ def test_png_contains_info_and_reload_reproduces_face(tmp_path):
     assert [j.age for j in jobs] == [25]
     assert build_prompt(jobs[0].options, jobs[0].seed, 25).prompt == build_prompt(opts, 4242, 25).prompt
     aged = gen.run_jobs(jobs)[0]
-    assert aged.path.name == f"{face.path.stem}_mit25.png"
+    assert aged.path.name == face.path.name.replace("_16J_", "_25J_")
 
     # Alterungs-Set aus einem bereits gealterten Bild: kein "_mit25_mit30"
     again = aging_jobs(load_face(aged.path), [30])
-    assert again[0].filename == f"{face.path.stem}_mit30"
+    assert again[0].filename == face.path.stem.replace("_16J_", "_30J_")
 
 
 def test_reload_from_old_csv_log(tmp_path):

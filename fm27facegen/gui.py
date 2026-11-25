@@ -20,15 +20,15 @@ from typing import Callable
 from PIL import Image, ImageTk
 
 from . import APP_NAME, __version__
-from . import facedrop
+from . import facedrop, ingame, theme
 from . import selfupdate, winclip
 from . import settings as settings_mod
 from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWebUIBackend, check_sd_webui
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
 from .forge import ForgeManager, api_enabled, find_launcher
 from .update import check_latest, should_notify
-from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, list_folder_images, load_face,
-                        parse_ages, rename_face, search_key, trash_files)
+from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, face_age, list_folder_images,
+                        load_face, parse_ages, rename_face, search_key, trash_files)
 from .i18n import LANGUAGES, country, ethnicity, get_language, language_label, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
@@ -45,12 +45,15 @@ AUTO_ETH = "auto_country"
 
 
 def _checker(size: int, cell: int = 10) -> Image.Image:
-    img = Image.new("RGB", (size, size), (255, 255, 255))
+    """Schachbrett hinter freigestellten Bildern (im dunklen Schema dunkel)."""
+    dark = theme.colors() is theme.PALETTES["dark"]
+    c1, c2 = ((58, 64, 70), (47, 52, 57)) if dark else ((255, 255, 255), (220, 220, 220))
+    img = Image.new("RGB", (size, size), c1)
     px = img.load()
     for y in range(size):
         for x in range(size):
             if ((x // cell) + (y // cell)) % 2:
-                px[x, y] = (220, 220, 220)
+                px[x, y] = c2
     return img
 
 
@@ -252,7 +255,8 @@ class SuggestList:
             pass
         font = ttk.Style(self.master).lookup("TCombobox", "font") or "TkDefaultFont"
         lb = tk.Listbox(top, takefocus=0, exportselection=False, activestyle="none", relief="solid", borderwidth=1,
-                        highlightthickness=0, selectbackground="#2f7de1", selectforeground="white", font=font)
+                        highlightthickness=0, selectbackground=theme.colors()["accent"], selectforeground=theme.colors()["accent_fg"],
+                        background=theme.colors()["field"], foreground=theme.colors()["fg"], font=font)
         lb.pack(fill="both", expand=True)
         lb.bind("<ButtonRelease-1>", self._click)
         lb.bind("<Motion>", lambda e: self._select(lb.nearest(e.y)))
@@ -424,6 +428,8 @@ class App(tk.Tk):
         self.bind("<Configure>", self._on_root_configure, add="+")
         self.bind("<Unmap>", lambda e: self._unpost_list() if e.widget is self else None, add="+")
         self.bind("<Control-c>", self._on_key_copy)
+        self.bind("<Control-a>", self._on_key_select_all)
+        self.bind("<Control-A>", self._on_key_select_all)
         self.bind("<Control-C>", self._on_key_copy)
         threading.Thread(target=self._fd_watch, daemon=True).start()
         if self.fd_info:
@@ -465,15 +471,16 @@ class App(tk.Tk):
 
     # ================================================================== Aufbau
     def _style(self) -> None:
-        st = ttk.Style(self)
-        if "vista" in st.theme_names():
-            st.theme_use("vista")
-        elif "clam" in st.theme_names():
-            st.theme_use("clam")
-        st.configure("Big.TButton", font=("Segoe UI", 11, "bold"), padding=8)
-        st.configure("Hint.TLabel", foreground="#666")
-        st.configure("Head.TLabel", font=("Segoe UI", 10, "bold"))
-        st.configure("Wrap.TCheckbutton", wraplength=360)  # lange Übersetzungen umbrechen statt abschneiden
+        """Farbschema (hell/dunkel) mit dem Grün aus dem Symbol – siehe theme.py."""
+        self.c = theme.apply(self, getattr(self.cfg, "theme", "light"))
+
+    def _toggle_theme(self) -> None:
+        if self._busy():
+            messagebox.showinfo(APP_NAME, t("msg.lang_busy"))
+            return
+        self.cfg.theme = "light" if self.cfg.theme == "dark" else "dark"
+        self._style()
+        self._apply_language(get_language())  # Oberfläche mit den neuen Farben neu aufbauen
 
     def _row(self, parent, r: int, label: str, widget, hint: str | None = None) -> None:
         ttk.Label(parent, text=label).grid(row=r, column=0, sticky="w", padx=(8, 6), pady=4)
@@ -693,6 +700,10 @@ class App(tk.Tk):
                     "update_prereleases"):
             v[key] = tk.BooleanVar(self)
 
+        if getattr(self, "accent_line", None) is None:  # schmaler grüner Streifen oben
+            self.accent_line = tk.Frame(self, height=4)
+            self.accent_line.pack(side="top", fill="x")
+        self.accent_line.configure(background=self.c["accent"])
         root = self.root_frame = ttk.Frame(self, padding=8)
         root.pack(fill="both", expand=True)
         root.columnconfigure(1, weight=1)
@@ -1115,6 +1126,7 @@ class App(tk.Tk):
         ttk.Label(self.head_new, text=t("gal.hint"), style="Hint.TLabel", wraplength=470,
                   justify="left").pack(side="left")
         ttk.Button(self.head_new, text=t("btn.load_images"), command=self._load_images).pack(side="right")
+        ttk.Button(self.head_new, text=t("btn.select_all"), command=self._select_all).pack(side="right", padx=(0, 6))
         self.head_folder = ttk.Frame(head)
         src = ttk.Frame(self.head_folder)
         src.pack(fill="x", pady=(0, 4))
@@ -1137,7 +1149,8 @@ class App(tk.Tk):
         search.pack(side="left", padx=(4, 8))
         self.v["folder_filter"].trace_add("write", lambda *a: self._apply_folder_filter())
         ttk.Button(row2, text=t("btn.refresh"), command=self._load_folder).pack(side="left")
-        self.folder_info = ttk.Label(row2, text="", style="Hint.TLabel")
+        ttk.Button(row2, text=t("btn.select_all"), command=self._select_all).pack(side="left", padx=(6, 0))
+        self.folder_info = ttk.Label(row2, text="", style="Hint.TLabel", wraplength=240, justify="left")
         self.folder_info.pack(side="left", padx=(10, 0))
         self._update_fd_widgets()
         nb.bind("<<NotebookTabChanged>>", lambda e: self._on_right_tab())
@@ -1145,12 +1158,12 @@ class App(tk.Tk):
         gal.grid(row=1, column=0, sticky="nsew")
         gal.rowconfigure(0, weight=1)
         gal.columnconfigure(0, weight=1)
-        self.canvas = tk.Canvas(gal, background="#f4f4f4", highlightthickness=0)
+        self.canvas = tk.Canvas(gal, background=self.c["canvas"], highlightthickness=0)
         sb = ttk.Scrollbar(gal, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=sb.set)
         self.canvas.grid(row=0, column=0, sticky="nsew")
         sb.grid(row=0, column=1, sticky="ns")
-        self.grid_frame = tk.Frame(self.canvas, background="#f4f4f4")
+        self.grid_frame = tk.Frame(self.canvas, background=self.c["canvas"])
         self.canvas.create_window((0, 0), window=self.grid_frame, anchor="nw")
         self.grid_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.canvas.bind("<Configure>", lambda e: self._relayout())
@@ -1162,8 +1175,8 @@ class App(tk.Tk):
         side.grid(row=1, column=1, sticky="n", padx=(10, 0))
         ttk.Label(side, text=t("gal.selection"), style="Head.TLabel").pack(anchor="w")
         # leeres Platzhalterbild: ohne Bild würde Tk width/height in Zeichen statt Pixeln messen
-        self.blank_img = ImageTk.PhotoImage(Image.new("RGB", (PREVIEW, PREVIEW), (221, 221, 221)))
-        self.preview = tk.Label(side, image=self.blank_img, width=PREVIEW, height=PREVIEW, background="#ddd",
+        self.blank_img = ImageTk.PhotoImage(Image.new("RGB", (PREVIEW, PREVIEW), self.c["preview"]))
+        self.preview = tk.Label(side, image=self.blank_img, width=PREVIEW, height=PREVIEW, background=self.c["preview"],
                                 relief="sunken", cursor="hand2")
         self._make_drag_source(self.preview, lambda: self.selected)
         self.preview.pack(pady=4)
@@ -1179,11 +1192,29 @@ class App(tk.Tk):
 
         aging = ttk.Frame(tab)
         aging.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        ttk.Label(aging, text=t("aging.title"), style="Head.TLabel").pack(side="left")
-        ttk.Label(aging, text=t("aging.with")).pack(side="left", padx=(6, 4))
-        ttk.Entry(aging, textvariable=self.v["aging_ages"], width=22).pack(side="left")
-        ttk.Label(aging, text=t("aging.years")).pack(side="left", padx=(4, 8))
-        ttk.Button(aging, text=t("btn.create"), command=self._aging).pack(side="left")
+        row1 = ttk.Frame(aging)
+        row1.pack(fill="x")
+        ttk.Label(row1, text=t("aging.title"), style="Head.TLabel").pack(side="left")
+        self.ages_entry = ttk.Entry(row1, textvariable=self.v["aging_ages"], width=16)
+        self.ages_entry.pack(side="left", padx=(6, 0))
+        ttk.Label(row1, text=t("aging.years")).pack(side="left", padx=(4, 10))
+        # "+ Jahre": jedes markierte Bild wird um so viele Jahre älter (die feste Liste wird dann ausgegraut)
+        ttk.Label(row1, text=t("aging.or")).pack(side="left")
+        if "aging_plus" not in self.v:
+            self.v["aging_plus"] = tk.IntVar(self, 0)
+            self.v["replace_ingame"] = tk.BooleanVar(self, False)
+            self.v["aging_plus"].trace_add("write", lambda *a: self._update_aging_inputs())
+        ttk.Spinbox(row1, from_=0, to=20, textvariable=self.v["aging_plus"], width=4).pack(side="left", padx=(4, 0))
+        ttk.Label(row1, text=t("aging.plus_years")).pack(side="left", padx=(4, 10))
+        ttk.Button(row1, text=t("btn.create"), style="Accent.TButton", command=self._aging).pack(side="left")
+        # nur in Galerie → FaceDrop: im Spiel ersetzen, Saison, Rückgängig
+        self.aging_fd_row = ttk.Frame(aging)
+        ttk.Checkbutton(self.aging_fd_row, text=t("chk.replace_ingame"), variable=self.v["replace_ingame"]).pack(
+            side="left")
+        ttk.Button(self.aging_fd_row, text=t("btn.season"), command=self._season).pack(side="left", padx=(12, 0))
+        self.undo_btn = ttk.Button(self.aging_fd_row, text=t("btn.undo_replace"), command=self._undo_replace)
+        self.undo_btn.pack(side="left", padx=(6, 0))
+        self._update_aging_inputs()
 
     # ------------------------------------------------------------------ Spielerliste
     def _build_playerlist(self, nb) -> None:
@@ -1219,9 +1250,9 @@ class App(tk.Tk):
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
         ysb.grid(row=0, column=1, sticky="ns")
-        self.tree.tag_configure("unknown", foreground="#b05a00")
-        self.tree.tag_configure("ok", foreground="#1a7f37")
-        self.tree.tag_configure("err", foreground="#c62828")
+        self.tree.tag_configure("unknown", foreground=self.c["warn"])
+        self.tree.tag_configure("ok", foreground=self.c["ok"])
+        self.tree.tag_configure("err", foreground=self.c["err"])
         self.tree.bind("<Double-1>", self._open_player_image)
 
         edit = ttk.Frame(tab)
@@ -1266,6 +1297,9 @@ class App(tk.Tk):
         self.lang_btn = ttk.Button(out, text=f"{t('btn.language')}: {LANGUAGES[get_language()]}",
                                    command=self._change_language)
         self.lang_btn.grid(row=0, column=5, padx=(12, 0))
+        dark = self.cfg.theme == "dark"
+        ttk.Button(out, text=t("btn.theme_light") if dark else t("btn.theme_dark"),
+                   command=self._toggle_theme).grid(row=0, column=6, padx=(6, 0))
 
         bottom = ttk.Frame(root)
         bottom.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
@@ -1590,8 +1624,11 @@ class App(tk.Tk):
         return base / (country_key or self.cfg.face.country) if self.cfg.subfolder_per_country else base
 
     def _make_generator(self, out_dir: Path | None = None, overwrite: bool | None = None) -> Generator:
+        # Die Pause zwischen Bildern ist nur fürs Online-Limit da – lokal (Forge) würde sie nur bremsen
+        local = self.cfg.backend.backend == StableDiffusionWebUIBackend.name
         return Generator(self.cfg.backend, self.cfg.process, out_dir or self._out_dir(), self.cfg.pattern,
-                         self.cfg.delay, overwrite=self.cfg.overwrite if overwrite is None else overwrite)
+                         0.0 if local else self.cfg.delay,
+                         overwrite=self.cfg.overwrite if overwrite is None else overwrite)
 
     # ================================================================== Generieren (gemeinsam)
     def _busy(self) -> bool:
@@ -1617,13 +1654,20 @@ class App(tk.Tk):
             return False
         return True
 
-    def _run(self, gen: Generator, jobs: list[Job], kind: str, replace_idx: tuple[str, int] | None = None) -> None:
+    def _run(self, gen: Generator, jobs: list[Job], kind: str, replace_idx: tuple[str, int] | None = None,
+             retries: int = 0) -> None:
         """Startet die Jobs im Hintergrund. kind: batch | list | aging | reroll"""
         if not jobs:
             return
         self.generator = gen
         self.errors = 0
         self.done_ok = 0
+        self.run_started = time.monotonic()
+        self.run_timing: list[dict] = []
+        self.run_replace: list[tuple[GeneratedFace, Path]] = []  # (fertiges Bild in der Warteschlange, FaceDrop-Ziel)
+        self.run_failed: list[str] = []
+        if kind != "aging":
+            self.run_skipped = []
         total = len(jobs)
         self.progress.configure(maximum=total * 100, value=0)
         self.prog_done, self.prog_sub, self.prog_real = 0, 0.0, False
@@ -1639,7 +1683,8 @@ class App(tk.Tk):
         def work():
             gen.run_jobs(jobs,
                          on_done=lambda i, job, face: self.q.put(("done", i, total, job, face, kind, replace_idx)),
-                         on_error=lambda i, job, exc: self.q.put(("error", i, total, job, exc, kind, None)))
+                         on_error=lambda i, job, exc: self.q.put(("error", i, total, job, exc, kind, None)),
+                         retries=retries)
             self.q.put(("finished", total, total, None, None, kind, None))
 
         self.worker = threading.Thread(target=work, daemon=True)
@@ -1698,6 +1743,10 @@ class App(tk.Tk):
                     self.prog_done, self.prog_sub, self.prog_real = i, 0.0, False
                 if kind == "done":
                     self.done_ok += 1
+                    if payload.timing:
+                        self.run_timing.append(payload.timing)
+                    if job.replace is not None:
+                        self.run_replace.append((payload, job.replace))
                     if replace_idx is not None:
                         self._replace_face(replace_idx, payload)
                     else:
@@ -1708,9 +1757,12 @@ class App(tk.Tk):
                         self.tree.item(job.tag, tags=("ok",))
                         self.players[job.tag].image = payload.path
                     self._show_progress()
-                    self.status.config(text=t("status.done_one", i=i, total=total, name=payload.path.name))
+                    self.status.config(text=t("status.done_one", i=i, total=total, name=payload.path.name)
+                                       + self._eta_text(i, total))
                 elif kind == "error":
                     self.errors += 1
+                    if job is not None:
+                        self.run_failed.append(job.filename or (job.replace.name if job.replace else f"#{i}"))
                     self._show_progress()
                     if job.tag and self.tree.exists(job.tag):
                         self.tree.set(job.tag, "status", t("list.error", e=payload)[:120])
@@ -1725,8 +1777,11 @@ class App(tk.Tk):
                     self._show_progress()
                     where = self.generator.out_dir if self.generator else self.cfg.output_dir
                     self.status.config(text=t("status.finished", n=self.done_ok, where=where)
-                                       + (t("status.finished_err", n=self.errors) if self.errors else ""))
+                                       + (t("status.finished_err", n=self.errors) if self.errors else "")
+                                       + self._timing_text())
                     self._update_list_info()
+                    if run_kind == "aging":
+                        self._finish_aging()
                     if self.gmode == "folder":
                         self._load_folder()
                 elif kind == "folder":
@@ -1734,6 +1789,61 @@ class App(tk.Tk):
         except queue.Empty:
             pass
         self.after(150, self._poll)
+
+    def _eta_text(self, done: int, total: int) -> str:
+        """' · noch ca. 9 Min.' – aus der bisherigen Durchschnittszeit."""
+        if done <= 0 or done >= total:
+            return ""
+        per = (time.monotonic() - getattr(self, "run_started", time.monotonic())) / done
+        mins = max(1, round(per * (total - done) / 60))
+        return t("status.eta", m=mins)
+
+    def _timing_text(self) -> str:
+        tm = getattr(self, "run_timing", [])
+        if not tm:
+            return ""
+        gen = sum(x["gen"] for x in tm) / len(tm)
+        post = sum(x["post"] for x in tm) / len(tm)
+        total = (time.monotonic() - self.run_started) / max(1, len(tm))
+        fmt = lambda v: f"{v:.1f}".replace(".", "," if get_language() == "de" else ".")  # noqa: E731
+        return " · " + t("status.timing", total=fmt(total), gen=fmt(gen), post=fmt(post))
+
+    def _finish_aging(self) -> None:
+        """Nach dem Durchlauf: fertige Bilder in einem Rutsch ins Spiel schieben (alte vorher sichern)."""
+        pairs = getattr(self, "run_replace", [])
+        skipped = getattr(self, "run_skipped", [])
+        failed_gen = getattr(self, "run_failed", [])
+        if pairs:
+            cancelled = bool(self.generator and self.generator.cancel.is_set())
+            if cancelled and not messagebox.askyesno(APP_NAME, t("msg.replace_cancelled", n=len(pairs))):
+                for face, _target in pairs:
+                    face.path.unlink(missing_ok=True)
+                pairs = []
+        done: list[Path] = []
+        failed: list[tuple[Path, str]] = []
+        if pairs:
+            done, failed = ingame.apply_replacements([(f.path, target) for f, target in pairs], self.cfg.output_dir)
+            moved = {target for target in done}
+            for face, target in pairs:  # Galerie zeigt ab jetzt das Bild im Spiel
+                if target in moved:
+                    for st in self.gal.values():
+                        for f in st.faces + st.all_faces:
+                            if f is face:
+                                f.path = target
+            self._update_aging_inputs()
+            self.folder_dirty = True
+            if self.gmode == "folder":
+                self._load_folder()
+        if pairs or skipped or (failed_gen and len(failed_gen) + self.done_ok > 1):
+            msg = t("msg.replace_done", n=len(done)) if pairs else t("status.finished", n=self.done_ok,
+                                                                        where=self.cfg.output_dir)
+            if failed or failed_gen:
+                names = [p.name for p, _e in failed] + failed_gen
+                msg += t("msg.replace_failed", n=len(names), names=self._name_list(names))
+            if skipped:
+                msg += t("msg.replace_skipped", n=len(skipped), names=self._name_list(skipped))
+            messagebox.showinfo(APP_NAME, msg)
+        self.run_replace, self.run_skipped, self.run_failed = [], [], []
 
     # ---- Ladebalken
     def _show_progress(self) -> None:
@@ -1787,6 +1897,7 @@ class App(tk.Tk):
         tab = self.tab_new if mode == "new" else self.tab_folder
         changed = force or mode != self.gmode or self.gal_frame.winfo_manager() == ""
         self.gmode = mode
+        self._update_aging_inputs()
         if changed:
             self.gal_frame.pack_forget()
             self.gal_frame.pack(in_=tab, fill="both", expand=True)
@@ -1850,6 +1961,7 @@ class App(tk.Tk):
             self.career_lbl.pack_forget()
             self.career_cb.pack_forget()
             self.career_open.pack_forget()
+        self._update_aging_inputs()
 
     def _refresh_careers(self) -> None:
         """Karrieren aus FaceDrops Ordner (neueste zuerst) + 'Echte Spieler'."""
@@ -2135,7 +2247,7 @@ class App(tk.Tk):
             if not hasattr(self, "thumb_badge"):
                 self.thumb_badge = []
             self.thumb_badge.append(badge)
-            lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background="#f4f4f4",
+            lbl = tk.Label(self.grid_frame, image=photo, borderwidth=3, relief="flat", background=self.c["canvas"],
                            cursor="hand2")
             lbl.bind("<Button-1>", lambda e, i=idx: self._click_thumb(e, i))
             lbl.bind("<Double-Button-1>", lambda e, i=idx: open_path(self.faces[i].path))
@@ -2183,7 +2295,8 @@ class App(tk.Tk):
             return
         self.selected = idx
         for i, lbl in enumerate(self.thumb_widgets):
-            lbl.config(background="#2f7de1" if i == idx else ("#9cc3f2" if i in self.marked else "#f4f4f4"))
+            lbl.config(background=self.c["select"] if i == idx else (self.c["mark"] if i in self.marked
+                                                                     else self.c["canvas"]))
         face = self.faces[idx]
         self.preview_img = ImageTk.PhotoImage(_on_checker(face.image, PREVIEW))
         self.preview.config(image=self.preview_img, width=PREVIEW, height=PREVIEW)
@@ -2220,27 +2333,136 @@ class App(tk.Tk):
         self._run(gen, [Job(options=copy.deepcopy(face.options), filename=face.path.stem)], "reroll",
                   (self.gmode, self.selected))
 
-    def _aging(self) -> None:
-        face = self._current()
-        if not face:
+    def _update_aging_inputs(self) -> None:
+        """'+ Jahre' > 0 graut die feste Alters-Liste aus; FaceDrop-Zeile nur in Galerie → FaceDrop."""
+        if not hasattr(self, "ages_entry"):
+            return
+        try:
+            plus = int(self.v["aging_plus"].get() or 0)
+        except (tk.TclError, ValueError):
+            plus = 0
+        self.ages_entry.state(["disabled"] if plus > 0 else ["!disabled"])
+        show = self.gmode == "folder" and self.gal_src == "fd" and self.fd_dir is not None
+        if show:
+            self.aging_fd_row.pack(fill="x", pady=(4, 0))
+            out = self.v["output_dir"].get().strip() or self.cfg.output_dir
+            self.undo_btn.state(["!disabled"] if ingame.undo_count(out) else ["disabled"])
+        else:
+            self.aging_fd_row.pack_forget()
+
+    def _aging_plus(self) -> int:
+        try:
+            return max(0, int(self.v["aging_plus"].get() or 0))
+        except (tk.TclError, ValueError):
+            return 0
+
+    def _aging(self, faces: list[GeneratedFace] | None = None, plus: int | None = None,
+               replace: bool | None = None, confirm: bool = True) -> None:
+        """Alterungs-Set für alle markierten Bilder – feste Alter (20, 25 …) oder '+ Jahre'.
+        Mit "Im Spiel ersetzen" ersetzt je Spieler das niedrigste neue Alter das FaceDrop-Bild."""
+        faces = faces if faces is not None else self._marked_faces()
+        if not faces:
             messagebox.showinfo(APP_NAME, t("msg.select_first"))
             return
-        ages = parse_ages(self.v["aging_ages"].get())
-        jobs = aging_jobs(face, ages)
-        if not jobs:
+        plus = self._aging_plus() if plus is None else plus
+        ages = [] if plus else parse_ages(self.v["aging_ages"].get())
+        if not plus and not ages:
             messagebox.showinfo(APP_NAME, t("msg.enter_ages"))
             return
+        if replace is None:
+            replace = bool(self.v["replace_ingame"].get()) and self.gmode == "folder" and self.gal_src == "fd"
         if not self._prepare():
             return
-        # aus FaceDrop heraus: neue Bilder in den Speicherort (FaceDrops Ordner bleibt unverändert)
-        out = self._out_dir(face.options.country) if facedrop.is_facedrop_path(face.path) else face.path.parent
-        gen = self._make_generator(out_dir=out)
-        if not getattr(gen.backend, "supports_img2img", False):
-            if face.source == "unknown":
-                messagebox.showinfo(APP_NAME, t("msg.aging_need_local"))
+        gen = self._make_generator()
+        local = getattr(gen.backend, "supports_img2img", False)
+        if replace and not local:
+            messagebox.showinfo(APP_NAME, t("msg.replace_local_only"))
+            return
+        stage = ingame.staging_dir() if replace else None
+        jobs: list[Job] = []
+        skipped: list[str] = []
+        replace_faces = 0
+        for k, face in enumerate(faces):
+            if not local and face.source == "unknown":
+                skipped.append(face.path.name)
+                continue
+            js = aging_jobs(face, ages, relative=plus)
+            if not js:
+                if plus or face_age(face) is None:
+                    skipped.append(face.path.name)
+                continue
+            is_fd = facedrop.is_facedrop_path(face.path)
+            # aus FaceDrop heraus: weitere Alter in den Speicherort, sonst neben das Ausgangsbild
+            target_dir = self._out_dir(face.options.country) if is_fd else face.path.parent
+            for j in js:
+                j.out_dir = target_dir
+            if replace and is_fd:
+                low = min(js, key=lambda j: j.age or 0)  # das niedrigste neue Alter kommt ins Spiel
+                low.out_path = stage / f"{k:05d}_{face.path.name}"
+                low.replace = face.path
+                replace_faces += 1
+            jobs += js
+        if not jobs:
+            if skipped:
+                messagebox.showinfo(APP_NAME, t("msg.no_age", n=len(skipped), names=self._name_list(skipped)))
+            else:
+                messagebox.showinfo(APP_NAME, t("msg.enter_ages"))
+            return
+        if replace and confirm:
+            folder = ingame.backup_root(self.cfg.output_dir)
+            if not messagebox.askyesno(APP_NAME, t("msg.replace_confirm", n=replace_faces, folder=folder)):
                 return
+        if not local:
             self.after(300, lambda: self.status.config(text=t("status.aging_online")))
-        self._run(gen, jobs, "aging")
+        self.run_skipped = skipped
+        self._run(gen, jobs, "aging", retries=1 if len(jobs) > 1 else 0)
+
+    @staticmethod
+    def _name_list(names: list[str], limit: int = 12) -> str:
+        return "\n".join(names[:limit]) + ("\n…" if len(names) > limit else "")
+
+    def _season(self) -> None:
+        """Saison-Knopf: alle Spieler der gewählten Karriere +1 Jahr – im Spiel ersetzt, ohne weitere Rückfragen."""
+        if self.gal_src != "fd" or not self.fd_dir:
+            return
+        faces = list(self.gal["folder"].all_faces)
+        if not faces:
+            messagebox.showinfo(APP_NAME, t("gal.empty_fd"))
+            return
+        career = self.v["fd_career"].get()
+        folder = ingame.backup_root(self.v["output_dir"].get().strip() or self.cfg.output_dir)
+        if not messagebox.askyesno(APP_NAME, t("msg.season_confirm", n=len(faces), career=career, folder=folder)):
+            return
+        self._aging(faces=faces, plus=1, replace=True, confirm=False)
+
+    def _undo_replace(self) -> None:
+        out = self.v["output_dir"].get().strip() or self.cfg.output_dir
+        n = ingame.undo_count(out)
+        if not n or self._busy():
+            return
+        if not messagebox.askyesno(APP_NAME, t("msg.undo_confirm", n=n)):
+            return
+        restored, failed = ingame.undo_last(out)
+        msg = t("msg.undo_done", n=len(restored))
+        if failed:
+            msg += t("msg.replace_failed", n=len(failed), names=self._name_list([p.name for p, _e in failed]))
+        messagebox.showinfo(APP_NAME, msg)
+        self._update_aging_inputs()
+        self.folder_dirty = True
+        if self.gmode == "folder":
+            self._load_folder()
+
+    def _select_all(self) -> None:
+        if not self.faces:
+            return
+        self.marked = set(range(len(self.faces)))
+        self._select(self.selected if self.selected is not None else 0, keep_marks=True)
+        self.status.config(text=t("status.marked", n=len(self.faces)))
+
+    def _on_key_select_all(self, event) -> None:
+        if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
+                and self.right_nb.index("current") in (0, 1):
+            self._select_all()
 
     def _load_images(self) -> None:
         """Bereits erstellte Bilder in die Galerie holen (z. B. für ein späteres Alterungs-Set)."""

@@ -3,6 +3,31 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.4
+---------------
+Ageing set
+- The file name gets the new age: "…_16J_…" becomes "…_20J_…" (instead of appending "_mit20").
+- Age several images at once: select them (Ctrl/Shift, "Select all" or Ctrl+A).
+- New spin box "or older by … years": every selected image gets e.g. 4 years older, whatever its age was.
+
+Replace in game (Gallery → FaceDrop)
+- "Replace in game" tick box: the new image replaces the FaceDrop image, FM shows it right away. With several ages
+  the lowest one goes into the game.
+- Old images are backed up first (save folder\Sicherungskopie\…), "Undo last replacement" restores them.
+- For large batches (also overnight): one question at the start, all images first go to a queue, then into the
+  game all at once; failures are retried once, a summary is shown at the end.
+- "Season: career +1 year" – the whole career one year older with one click.
+
+Speed
+- Remaining time in the status bar ("approx. 9 min left") and the average time per image at the end.
+- Cut-out and saving now run in parallel while the AI already paints the next image.
+- With local Forge the pause between images is skipped.
+- Time measurement per image in %APPDATA%\FM27FaceGenerator\timing.log.
+
+Interface
+- New design with the green from the icon, plus a dark mode (button at the bottom right).
+
+
 Version 1.8.7.3
 ---------------
 - Drop-downs: typing now shows a suggestion list right below the field (like a browser search bar, at most 8

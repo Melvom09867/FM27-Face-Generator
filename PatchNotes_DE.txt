@@ -3,6 +3,31 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.4
+---------------
+Alterungs-Set
+- Dateiname bekommt das neue Alter: aus "…_16J_…" wird "…_20J_…" (statt "_mit20" anzuhängen).
+- Mehrere Bilder auf einmal altern lassen: markieren (Strg/Shift, "Alle markieren" oder Strg+A).
+- Neues Pfeilfeld "oder älter um … Jahre": jedes markierte Bild wird z. B. 4 Jahre älter, egal wie alt es war.
+
+Im Spiel ersetzen (Galerie → FaceDrop)
+- Häkchen "Im Spiel ersetzen": das neue Bild ersetzt das FaceDrop-Bild, FM zeigt es sofort. Bei mehreren Altern
+  kommt das niedrigste ins Spiel.
+- Alte Bilder werden vorher gesichert (Speicherort\Sicherungskopie\…), "Letzte Ersetzung rückgängig" holt sie zurück.
+- Für große Mengen (auch über Nacht): eine Rückfrage am Anfang, alle Bilder erst in einer Warteschlange, dann in
+  einem Rutsch ins Spiel; Fehler werden einmal wiederholt, am Ende gibt es eine Zusammenfassung.
+- "Saison: Karriere +1 Jahr" – die ganze Karriere mit einem Klick ein Jahr älter.
+
+Tempo
+- Restzeit in der Statuszeile ("noch ca. 9 Min.") und am Ende die Durchschnittszeit pro Bild.
+- Freistellen und Speichern laufen jetzt parallel, während die KI schon das nächste Bild malt.
+- Lokal (Forge) entfällt die Pause zwischen den Bildern.
+- Zeitmessung je Bild in %APPDATA%\FM27FaceGenerator\timing.log.
+
+Oberfläche
+- Neues Design mit dem Grün aus dem Symbol, dazu ein Dark Mode (Knopf unten rechts).
+
+
 Version 1.8.7.3
 ---------------
 - Auswahlfelder: Beim Tippen erscheint jetzt eine eigene Vorschlagsliste direkt unter dem Feld (wie bei einer

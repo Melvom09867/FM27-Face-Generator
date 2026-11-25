@@ -244,10 +244,26 @@ It sets the **facial expression** and adds matching **features**, for example:
 
 ### Ageing set (the same face at different ages)
 
-1. Select an image in the gallery.
-2. Below the gallery, enter the ages under **"Ageing set"**, e.g. `16, 20, 25, 30, 34`
-   (ranges like `25-28` work too).
-3. Click **"Create"**. Files like `Jonas Müller_mit20.png`, `Jonas Müller_mit30.png` … are created.
+1. Select one or **several images** in the gallery (Ctrl/Shift + click, **"Select all"** or **Ctrl+A**).
+2. Below the gallery under **"Ageing set"**, either enter fixed ages, e.g. `16, 20, 25, 30, 34`
+   (ranges like `25-28` work too) – **or** pick e.g. `4` in the spin box **"or older by … years"**: every selected
+   image then gets 4 years older, whatever its age was (the fixed list is greyed out).
+3. Click **"Create"**. The age in the file name changes too: `Germany_16J_Ambitious_123.png` becomes
+   `Germany_20J_Ambitious_123.png`. Without an age in the name (e.g. renamed), `_20J` is appended.
+
+### Replace in game, season and undo (Gallery → FaceDrop)
+
+- Tick **"Replace in game"**: the new image gets the FaceDrop name (e.g. `newgen_2002044702.png`) and replaces the
+  image in the game – FM shows it right away. If several ages are created, the **lowest** goes into the game, the
+  others go to the save folder.
+- The old images are backed up first: **save folder\Sicherungskopie\<date time>\<career>\**.
+- All new images are first collected in a queue and only moved into the game **all at once at the end**. There is
+  **only one question at the start** – then everything runs through (ideal overnight). If an image fails it's
+  retried once and otherwise skipped; a summary is shown at the end.
+- **"Season: career +1 year"**: ages all players of the selected career by 1 year and replaces them.
+- **"Undo last replacement"** restores the backed-up images.
+- The status bar shows the **remaining time** ("approx. 9 min left") and at the end the average time per image.
+- Only with **local Stable Diffusion (Forge)** – online would be too slow and look more artificial.
 
 Origin, hair, clothing, personality etc. stay the same; from the mid-20s more mature features are added,
 from the early 30s fine lines and later grey temples.
@@ -429,6 +445,11 @@ later just pick it from the list.
 - Add your own English keywords in the **Extra** field, e.g. `green eyes, small scar on chin`.
 
 ## Troubleshooting
+
+**Images take too long (local)?** After each run the status bar shows e.g. "Ø 6.1 s per image (AI 4.9 s,
+post-processing 1.2 s)", every single time is in `%APPDATA%\FM27FaceGenerator\timing.log`. If the AI part is high:
+plug the laptop in and use the best-performance mode, have a Lightning/Turbo model active in Forge (e.g. RealVisXL
+Lightning), "Generation size" 1024 or 896. The pause between images now only applies online.
 
 | Problem | Solution |
 |---|---|

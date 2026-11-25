@@ -26,7 +26,7 @@ def test_rename_keeps_ageing_possible_for_csv_images(tmp_path):
     reloaded = load_face(new)
     assert reloaded.source == "metadata" and reloaded.prompt.seed == 77
     assert json.loads(Image.open(new).info[META_KEY])["legacy"] is True
-    assert aging_jobs(reloaded, [25])[0].filename == "Kwame Mensah_mit25"
+    assert aging_jobs(reloaded, [25])[0].filename == "Kwame Mensah_25J"
 
 
 def test_rename_refuses_existing_name(tmp_path):

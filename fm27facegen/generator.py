@@ -38,6 +38,9 @@ class Job:
     tag: Any = None                    # frei verwendbar (z. B. Zeile der Spielerliste)
     prompt_text: str | None = None     # fertige Beschreibung statt build_prompt (Bilder aus älteren Versionen)
     meta: dict | None = None           # Bildinfos zu prompt_text
+    out_dir: Path | None = None        # Zielordner nur für diesen Job (sonst der des Generators)
+    out_path: Path | None = None       # fester Zielpfad (überschreibt) – z. B. Warteschlange für "Im Spiel ersetzen"
+    replace: Path | None = None        # dieses FaceDrop-Bild wird nach dem Durchlauf durch das neue ersetzt
 
 
 @dataclass
@@ -51,6 +54,7 @@ class GeneratedFace:
     # "unknown" (keine Infos – Alterungs-Set nur mit lokalem Stable Diffusion)
     source: str = "generated"
     legacy: bool = False               # True = nur fertige Beschreibung bekannt (Alter wird darin ersetzt)
+    timing: dict = field(default_factory=dict)  # Sekunden: "gen" (KI-Bild), "post" (Freistellen + Speichern)
 
 
 def _slug(text: str) -> str:
@@ -134,6 +138,12 @@ class Generator:
 
     # ------------------------------------------------------------------ einzelnes Bild
     def generate_job(self, job: Job, index: int = 1) -> GeneratedFace:
+        t0 = time.perf_counter()
+        fp, raw = self._render(job)
+        return self._finish(job, fp, raw, index, time.perf_counter() - t0)
+
+    def _render(self, job: Job) -> tuple[FacePrompt, Image.Image]:
+        """KI-Bild erzeugen (läuft auf der Grafikkarte bzw. online)."""
         fp = build_prompt(job.options, seed=job.seed, age=job.age)
         if job.prompt_text:
             meta = {**fp.meta, **(job.meta or {}), "seed": fp.seed}
@@ -144,22 +154,34 @@ class Generator:
             raw = self.backend.img2img(fp, job.init_image, AGING_STRENGTH)
         else:
             raw = self.backend.generate(fp)
+        return fp, raw
+
+    def _finish(self, job: Job, fp: FacePrompt, raw: Image.Image, index: int, t_gen: float) -> GeneratedFace:
+        """Freistellen, zuschneiden, speichern (läuft parallel zum nächsten KI-Bild)."""
+        t0 = time.perf_counter()
         proc = ProcessOptions(**{**self.proc.__dict__, "transparent": job.options.background == TRANSPARENT_BG,
                                  "crop_bottom": getattr(self.backend, "watermark_strip", 0.0)})
         if proc.transparent:
             from .segment import ensure_model
             ensure_model(getattr(self.backend, "status_cb", None))
         img = process(raw, proc)
-        name = safe_filename(job.filename) + ".png" if job.filename else make_filename(self.pattern, fp.meta, index)
-        path = self.out_dir / name
-        if not self.overwrite:
-            path = _unique(path)
+        if job.out_path is not None:
+            path = Path(job.out_path)  # feste Stelle (Warteschlange) – wird überschrieben
+        else:
+            name = safe_filename(job.filename) + ".png" if job.filename else make_filename(self.pattern, fp.meta, index)
+            path = Path(job.out_dir or self.out_dir) / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not self.overwrite:
+                path = _unique(path)
         legacy = bool(job.prompt_text)
         save_png(img, path, {META_KEY: face_info(fp, job.options, legacy)})
-        self._log(path, fp)
+        if job.out_path is None:
+            self._log(path, fp)
         cache_raw(raw, fp.seed, fp.meta.get("alter"))
+        timing = {"gen": round(t_gen, 2), "post": round(time.perf_counter() - t0, 2)}
+        _log_timing(path.name, timing)
         return GeneratedFace(path=path, image=img, prompt=fp, options=copy.deepcopy(job.options), raw=raw,
-                             legacy=legacy)
+                             legacy=legacy, timing=timing)
 
     def generate_one(self, face_opts: FaceOptions, index: int = 1, seed: int | None = None) -> GeneratedFace:
         return self.generate_job(Job(options=face_opts, seed=seed), index)
@@ -167,25 +189,57 @@ class Generator:
     # ------------------------------------------------------------------ mehrere Bilder
     def run_jobs(self, jobs: list[Job],
                  on_done: Callable[[int, Job, GeneratedFace], None] | None = None,
-                 on_error: Callable[[int, Job, Exception], None] | None = None) -> list[GeneratedFace]:
+                 on_error: Callable[[int, Job, Exception], None] | None = None,
+                 retries: int = 0) -> list[GeneratedFace]:
+        """Alle Jobs nacheinander. Während die KI schon das nächste Bild malt, wird das vorige im Hintergrund
+        freigestellt und gespeichert (spart pro Bild die Nachbearbeitungszeit). retries: so oft wird ein
+        fehlgeschlagenes Bild erneut versucht, bevor es übersprungen wird (wichtig für lange Läufe über Nacht)."""
+        from concurrent.futures import ThreadPoolExecutor
         results: list[GeneratedFace] = []
-        for i, job in enumerate(jobs, start=1):
-            if self.cancel.is_set():
-                break
-            if job.seed is None:
-                job.seed = random.randint(1, 2**31 - 1)
+
+        def finish(i: int, job: Job, fp: FacePrompt, raw: Image.Image, t_gen: float) -> None:
             try:
-                face = self.generate_job(job, index=i)
-                results.append(face)
-                if on_done:
-                    on_done(i, job, face)
+                face = self._finish(job, fp, raw, i, t_gen)
             except Exception as exc:  # noqa: BLE001
                 if on_error:
                     on_error(i, job, exc)
-                else:
-                    raise
-            if self.delay and i < len(jobs) and not self.cancel.is_set():
-                self.cancel.wait(self.delay)
+                    return
+                raise
+            results.append(face)
+            if on_done:
+                on_done(i, job, face)
+
+        pending = None
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            for i, job in enumerate(jobs, start=1):
+                if self.cancel.is_set():
+                    break
+                if job.seed is None:
+                    job.seed = random.randint(1, 2**31 - 1)
+                rendered = None
+                for attempt in range(retries + 1):
+                    try:
+                        t0 = time.perf_counter()
+                        fp, raw = self._render(job)
+                        rendered = (fp, raw, time.perf_counter() - t0)
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        if attempt < retries and not self.cancel.is_set():
+                            continue
+                        if on_error:
+                            on_error(i, job, exc)
+                        else:
+                            if pending is not None:
+                                pending.result()
+                            raise
+                if rendered is not None:
+                    if pending is not None:
+                        pending.result()  # höchstens ein Bild gleichzeitig in der Nachbearbeitung
+                    pending = pool.submit(finish, i, job, *rendered)
+                if self.delay and i < len(jobs) and not self.cancel.is_set():
+                    self.cancel.wait(self.delay)
+            if pending is not None:
+                pending.result()
         return results
 
     def run(self, face_opts: FaceOptions, count: int,
@@ -215,13 +269,38 @@ class Generator:
             pass  # Protokoll ist nur ein Extra – Bild ist trotzdem gespeichert
 
 
-def aging_jobs(face: GeneratedFace, ages: list[int]) -> list[Job]:
-    """Jobs für ein Alterungs-Set: gleicher Seed + gleiche Merkmale, nur das Alter ändert sich."""
+def face_age(face: GeneratedFace) -> int | None:
+    """Gespeichertes Alter eines Bildes (None = unbekannt, z. B. fremdes Bild ohne Infos)."""
+    if face.source == "unknown":
+        return None
     try:
-        base_age = int(face.prompt.meta.get("alter"))
+        return int(face.prompt.meta.get("alter"))
     except (TypeError, ValueError):
-        base_age = None
-    stem = re.sub(r"_mit\d+$", "", face.path.stem)  # aus einem Alterungsbild heraus nicht "_mit20_mit30"
+        return None
+
+
+_AGE_TOKEN = re.compile(r"(?<![0-9])(\d{1,2})J(?=_|$)")
+
+
+def aging_name(stem: str, age: int) -> str:
+    """Dateiname fürs neue Alter: 'Deutschland_16J_Ehrgeizig_123' -> 'Deutschland_20J_Ehrgeizig_123'.
+    Ohne Altersangabe im Namen (z. B. umbenannt in den Spielernamen) wird '_20J' angehängt."""
+    stem = re.sub(r"_mit\d+$", "", stem)  # alte Benennung (bis 1.8.7.3): Name_mit20
+    if _AGE_TOKEN.search(stem):
+        return _AGE_TOKEN.sub(f"{age}J", stem, count=1)
+    return f"{stem}_{age}J"
+
+
+def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0) -> list[Job]:
+    """Jobs für ein Alterungs-Set: gleicher Seed + gleiche Merkmale, nur das Alter ändert sich.
+
+    relative > 0: statt fester Alter das gespeicherte Alter um so viele Jahre erhöhen (z. B. +4)."""
+    base_age = face_age(face)
+    if relative:
+        if base_age is None:
+            return []
+        ages = [min(45, base_age + relative)]
+    stem = face.path.stem
     init = face.raw if face.raw is not None else as_init_image(face.image)
     gender = face.prompt.meta.get("geschlecht", face.options.gender)
     jobs = []
@@ -229,7 +308,7 @@ def aging_jobs(face: GeneratedFace, ages: list[int]) -> list[Job]:
         if age == base_age:
             continue
         job = Job(options=copy.deepcopy(face.options), seed=face.prompt.seed, age=age,
-                  filename=f"{stem}_mit{age}", init_image=init)
+                  filename=aging_name(stem, age), init_image=init)
         if face.legacy:
             job.prompt_text = reage_prompt(face.prompt.prompt, age, gender)
             job.meta = dict(face.prompt.meta)
@@ -324,14 +403,35 @@ def _find_in_log(path: Path) -> dict | None:
     return _log_cache[key].get(path.name)
 
 
+SKIP_DIRS = ("sicherungskopie",)  # Sicherungen alter FaceDrop-Bilder gehören nicht in die Galerie
+
+
 def list_folder_images(base: str | Path, limit: int = 2000) -> list[Path]:
-    """PNG-Bilder im Speicherort und in dessen direkten Unterordnern (z. B. 'je Land'), neueste zuerst."""
+    """PNG-Bilder im Speicherort und in dessen direkten Unterordnern (z. B. 'je Land'), neueste zuerst.
+    Die Sicherungskopie und Ordner, die mit '_' oder '.' beginnen, werden übersprungen."""
     base = Path(base)
     if not base.is_dir():
         return []
-    files = [p for p in base.glob("*.png")] + [p for p in base.glob("*/*.png")]
+    subs = [p for p in base.glob("*/*.png")
+            if p.parent.name.casefold() not in SKIP_DIRS and not p.parent.name.startswith(("_", "."))]
+    files = [p for p in base.glob("*.png")] + subs
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return files[:limit]
+
+
+def _log_timing(name: str, timing: dict) -> None:
+    """Zeitmessung je Bild (%APPDATA%\\FM27FaceGenerator\\timing.log) – zeigt, wo die Zeit hängt."""
+    try:
+        from .settings import config_dir
+        log = config_dir() / "timing.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        if log.exists() and log.stat().st_size > 300_000:
+            log.write_text("", encoding="utf-8")
+        with log.open("a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  KI {timing['gen']:.1f} s  "
+                    f"Nachbearbeitung {timing['post']:.1f} s  {name}\n")
+    except OSError:
+        pass
 
 
 def search_key(text: str) -> str:

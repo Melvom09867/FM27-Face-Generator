@@ -97,7 +97,7 @@ def test_list_and_aging_end_to_end(tmp_path):
         aging = aging_jobs(faces[0], [15, 20, 30])  # 15 = aktuelles Alter -> übersprungen
         assert [j.age for j in aging] == [20, 30]
         aged = gen.run_jobs(aging)
-        assert [f.path.name for f in aged] == ["Jonas Müller_mit20.png", "Jonas Müller_mit30.png"]
+        assert [f.path.name for f in aged] == ["Jonas Müller_20J.png", "Jonas Müller_30J.png"]
         assert "init_images" in _SD.last and _SD.last["seed"] == faces[0].prompt.seed  # lokal: img2img
         assert Image.open(aged[0].path).size == (250, 250)
 

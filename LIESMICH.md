@@ -246,10 +246,26 @@ Sie bestimmt den **Gesichtsausdruck** und fügt passende **Merkmale** hinzu, zum
 
 ### Alterungs-Set (dasselbe Gesicht in verschiedenen Altern)
 
-1. In der Galerie ein Bild auswählen.
-2. Unter der Galerie bei **„Alterungs-Set“** die gewünschten Alter eintragen, z. B. `16, 20, 25, 30, 34`
-   (Bereiche wie `25-28` gehen auch).
-3. **„Erstellen“** klicken. Es entstehen Dateien wie `Jonas Müller_mit20.png`, `Jonas Müller_mit30.png` …
+1. In der Galerie ein oder **mehrere Bilder markieren** (Strg/Shift + Klick, **„Alle markieren“** oder **Strg+A**).
+2. Unter der Galerie bei **„Alterungs-Set“** entweder feste Alter eintragen, z. B. `16, 20, 25, 30, 34`
+   (Bereiche wie `25-28` gehen auch) – **oder** im Pfeilfeld **„oder älter um … Jahre“** z. B. `4` wählen:
+   Dann wird jedes markierte Bild um 4 Jahre älter, egal wie alt es vorher war (die feste Liste wird ausgegraut).
+3. **„Erstellen“** klicken. Im Dateinamen wird das Alter mitgeändert: aus `Deutschland_16J_Ehrgeizig_123.png`
+   wird `Deutschland_20J_Ehrgeizig_123.png`. Steht kein Alter im Namen (z. B. umbenannt), wird `_20J` angehängt.
+
+### Im Spiel ersetzen, Saison und Rückgängig (Galerie → FaceDrop)
+
+- **„Im Spiel ersetzen“** anhaken: Das neue Bild bekommt den FaceDrop-Namen (z. B. `newgen_2002044702.png`) und
+  ersetzt das Bild im Spiel – FM zeigt es sofort. Werden mehrere Alter erzeugt, kommt das **niedrigste** ins Spiel,
+  die übrigen landen im Speicherort.
+- Die alten Bilder werden vorher gesichert: **Speicherort\Sicherungskopie\<Datum Uhrzeit>\<Karriere>\**.
+- Alle neuen Bilder entstehen zuerst in einer Warteschlange und werden erst **am Ende in einem Rutsch** ins Spiel
+  geschoben. Es gibt **nur eine Rückfrage am Anfang** – danach läuft alles durch (ideal über Nacht). Schlägt ein
+  Bild fehl, wird es noch einmal versucht und sonst übersprungen; am Ende kommt eine Zusammenfassung.
+- **„Saison: Karriere +1 Jahr“**: alle Spieler der gewählten Karriere um 1 Jahr altern lassen und ersetzen.
+- **„Letzte Ersetzung rückgängig“** holt die gesicherten Bilder zurück.
+- Unten steht die **Restzeit** („noch ca. 9 Min.“) und am Ende die Durchschnittszeit pro Bild.
+- Nur mit **lokalem Stable Diffusion (Forge)** – online wäre es zu langsam und sähe künstlicher aus.
 
 Herkunft, Haare, Kleidung, Persönlichkeit usw. bleiben gleich; ab Mitte 20 kommen reifere Gesichtszüge, ab Anfang 30
 feine Falten und später graue Schläfen dazu.
@@ -431,6 +447,11 @@ Mit **„Vereins-Vorlage → Speichern…“** merkt sich der Generator die Komb
 - Im Feld **Zusatz** eigene englische Stichworte ergänzen, z. B. `green eyes, small scar on chin`.
 
 ## Problemlösung
+
+**Bilder dauern zu lange (lokal)?** Nach jedem Durchlauf steht unten z. B. „Ø 6,1 s pro Bild (KI 4,9 s,
+Nachbearbeitung 1,2 s)“, jede Einzelzeit steht in `%APPDATA%\FM27FaceGenerator\timing.log`. Ist der KI-Anteil hoch:
+Laptop ans Netzteil und in den Höchstleistungs-Modus, in Forge ein Lightning-/Turbo-Modell (z. B. RealVisXL
+Lightning) aktiv haben, „Generier-Größe“ 1024 oder 896. Die Pause zwischen Bildern gilt nur noch online.
 
 | Problem | Lösung |
 |---|---|
