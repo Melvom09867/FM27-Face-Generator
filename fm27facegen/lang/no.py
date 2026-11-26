@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "laender.json kunne ikke leses: {e}",
     "data.bad_entry": "laender.json: oppføringen '{name}' har ugyldig format",
     "data.unknown_eth": "laender.json: '{name}' inneholder ukjente etnisiteter {keys}",
+    'theme.light': 'Lys',
+    'theme.dark': 'Mørk',
+    'chk.sd_fast': 'Hurtigmodus for Lightning-modeller (omtrent dobbelt så rask, litt mindre detaljer)',
+    'msg.out_moved': 'Lagringsmappen ligger nå i FMs mappe for ansikter:\n{new}\n\nAlle bilder og sikkerhetskopien ble flyttet dit fra\n{old}',
+    'msg.all_have_image': 'Alle spillerne på listen har allerede et bilde.',
+    'msg.reroll_fd': 'Lage et nytt ansikt for {name} i spillet?\n\nDet nye bildet erstatter det nåværende med samme navn. Det gamle bildet sikkerhetskopieres først til:\n{folder}\n(Kan angres.)',
+    'msg.fd_protected': "Dette bildet tilhører FaceDrop. For ikke å ødelegge noe i spillet blir det ikke omdøpt eller slettet her.\n\n'Lag på nytt' og aldringssettet fungerer – i spillet erstattes kun med sikkerhetskopi.",
+    'sel.fd_safe': 'I spillet (FaceDrop) – erstattes kun med sikkerhetskopi',
 }
 
 OPTIONS = {

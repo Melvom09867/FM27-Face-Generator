@@ -19,9 +19,67 @@ def config_dir() -> Path:
     return Path(base) / "FM27FaceGenerator" if base else Path.home() / ".fm27facegenerator"
 
 
+OUTPUT_NAME = "FM27 Face Generator"
+
+
+def fm_output_dir(fm_folder: Path) -> Path:
+    """Speicherort im FM-Benutzerordner: ...\\graphics\\faces\\FM27 Face Generator (inkl. Sicherungskopie)."""
+    return Path(fm_folder) / "graphics" / "faces" / OUTPUT_NAME
+
+
 def default_output_dir() -> Path:
+    try:
+        found = find_fm_folders()
+    except Exception:  # noqa: BLE001
+        found = []
+    if found:
+        return fm_output_dir(found[0])
     docs = Path.home() / "Documents"
     return (docs if docs.exists() else Path.home()) / "FM27 Faces"
+
+
+def moved_output_dir(output_dir: str) -> Path | None:
+    """Alter Speicherort ...\\graphics\\FM27 Face Generator -> neuer Ort ...\\graphics\\faces\\FM27 Face Generator."""
+    p = Path(output_dir)
+    if p.name.casefold() == OUTPUT_NAME.casefold() and p.parent.name.casefold() == "graphics":
+        return p.parent / "faces" / p.name
+    return None
+
+
+def move_output_folder(old: Path, new: Path) -> bool:
+    """Verschiebt den bisherigen Speicherort (Bilder, generiert.csv, Sicherungskopie) an den neuen Ort.
+    Vorhandene Dateien am Ziel werden nie überschrieben. Rückgabe: True, wenn danach alles am neuen Ort liegt."""
+    import shutil
+    old, new = Path(old), Path(new)
+    if not old.is_dir():
+        return True
+    try:
+        new.parent.mkdir(parents=True, exist_ok=True)
+        if not new.exists():
+            shutil.move(str(old), str(new))
+        else:
+            for child in list(old.iterdir()):
+                dst = new / child.name
+                if not dst.exists():
+                    shutil.move(str(child), str(dst))
+            try:
+                old.rmdir()
+            except OSError:
+                pass
+    except OSError:
+        return False
+    # 'Rückgängig' merkt sich die Pfade der Sicherungskopie – auf den neuen Ort umstellen
+    from .ingame import BACKUP_DIR, MANIFEST
+    for man in (new / BACKUP_DIR / MANIFEST, new / BACKUP_DIR / MANIFEST.replace(".json", ".rueckgaengig.json")):
+        try:
+            data = json.loads(man.read_text(encoding="utf-8"))
+            for item in data.get("items", []):
+                if item.get("backup", "").startswith(str(old)):
+                    item["backup"] = str(new) + item["backup"][len(str(old)):]
+            man.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        except (OSError, ValueError):
+            pass
+    return not old.exists()
 
 
 def documents_dirs() -> list[Path]:
@@ -95,9 +153,11 @@ class AppSettings:
     facedrop_dir: str = ""         # FaceDrop-Ordner von Hand gewählt (leer = automatisch erkennen)
     facedrop_cleanup: str = "ask"  # doppelte Bilder nach Übernahme durch FaceDrop: ask / auto / off
     theme: str = "light"           # Oberfläche: light / dark
+    tab_order: list = field(default_factory=lambda: ["new", "folder", "list"])  # Tabs rechts (per Ziehen änderbar)
     language: str = "de"
     ask_language: bool = True  # Sprachauswahl beim Start zeigen
-    version: int = 4  # Version der Einstellungen (für automatische Umstellung nach Updates)
+    moved_from: str = ""       # nur für diese Sitzung: Speicherort wurde beim Start verschoben (Hinweis)
+    version: int = 5  # Version der Einstellungen (für automatische Umstellung nach Updates)
 
 
 def _fill(cls, data: dict):
@@ -127,7 +187,7 @@ def load(path: Path | None = None) -> AppSettings:
     for k in ("output_dir", "pattern", "count", "delay", "subfolder_per_country", "overwrite",
               "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language",
               "club_presets", "forge_dir", "forge_autostart", "check_updates", "update_prereleases", "skip_version",
-              "facedrop_dir", "facedrop_cleanup", "theme"):
+              "facedrop_dir", "facedrop_cleanup", "theme", "tab_order"):
         if k in raw:
             try:
                 setattr(s, k, type(getattr(s, k))(raw[k]))
@@ -148,7 +208,13 @@ def load(path: Path | None = None) -> AppSettings:
         s.process.zoom, s.process.face_y = defaults_proc.zoom, defaults_proc.face_y
         s.face.background = defaults_face.background
         s.face.clothing = defaults_face.clothing
-    s.version = 4
+    if int(raw.get("version", 1) or 1) < 5:
+        # v1.8.7.5: Speicherort von graphics\\FM27 Face Generator nach graphics\\faces\\FM27 Face Generator
+        new = moved_output_dir(s.output_dir)
+        if new is not None and move_output_folder(Path(s.output_dir), new):
+            s.moved_from = s.output_dir
+            s.output_dir = str(new)
+    s.version = 5
     return s
 
 

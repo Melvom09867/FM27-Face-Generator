@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "Nie udało się odczytać laender.json: {e}",
     "data.bad_entry": "laender.json: wpis '{name}' ma nieprawidłowy format",
     "data.unknown_eth": "laender.json: '{name}' zawiera nieznane grupy etniczne {keys}",
+    'theme.light': 'Jasny',
+    'theme.dark': 'Ciemny',
+    'chk.sd_fast': 'Tryb szybki dla modeli Lightning (ok. dwa razy szybciej, nieco mniej szczegółów)',
+    'msg.out_moved': 'Folder zapisu jest teraz w folderze twarzy FM:\n{new}\n\nWszystkie obrazy i kopia zapasowa zostały tam przeniesione z\n{old}',
+    'msg.all_have_image': 'Wszyscy zawodnicy na liście mają już obraz.',
+    'msg.reroll_fd': 'Utworzyć nową twarz dla {name} w grze?\n\nNowy obraz zastąpi obecny pod tą samą nazwą. Stary obraz zostanie najpierw zapisany w:\n{folder}\n(Można cofnąć.)',
+    'msg.fd_protected': "Ten obraz należy do FaceDrop. Aby niczego nie zepsuć w grze, nie jest tu zmieniana jego nazwa ani nie jest usuwany.\n\n'Losuj ponownie' i zestaw starzenia działają – w grze obraz jest zastępowany tylko z kopią zapasową.",
+    'sel.fd_safe': 'W grze (FaceDrop) – zastępowany tylko z kopią zapasową',
 }
 
 OPTIONS = {

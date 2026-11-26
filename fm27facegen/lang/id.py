@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "laender.json tidak dapat dibaca: {e}",
     "data.bad_entry": "laender.json: entri '{name}' formatnya tidak valid",
     "data.unknown_eth": "laender.json: '{name}' berisi etnis tak dikenal {keys}",
+    'theme.light': 'Terang',
+    'theme.dark': 'Gelap',
+    'chk.sd_fast': 'Mode cepat untuk model Lightning (sekitar dua kali lebih cepat, detail sedikit berkurang)',
+    'msg.out_moved': 'Folder simpan sekarang ada di folder wajah FM:\n{new}\n\nSemua gambar dan cadangan dipindahkan ke sana dari\n{old}',
+    'msg.all_have_image': 'Semua pemain di daftar sudah punya gambar.',
+    'msg.reroll_fd': 'Buat wajah baru untuk {name} di game?\n\nGambar baru menggantikan yang sekarang dengan nama yang sama. Gambar lama dicadangkan dulu ke:\n{folder}\n(Bisa dibatalkan.)',
+    'msg.fd_protected': "Gambar ini milik FaceDrop. Agar game tidak rusak, gambar ini tidak diganti nama atau dihapus di sini.\n\n'Buat ulang' dan set penuaan tetap bisa – di game hanya diganti dengan cadangan.",
+    'sel.fd_safe': 'Di game (FaceDrop) – diganti hanya dengan cadangan',
 }
 
 OPTIONS = {

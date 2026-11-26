@@ -40,6 +40,7 @@ class BackendSettings:
     sd_sampler: str = "DPM++ 2M SDE"
     sd_scheduler: str = "Karras"
     gen_size: int = 768
+    sd_fast: bool = False          # Schnell-Modus für Lightning-Modelle (Euler, 1 Rechenschritt je Schritt)
     timeout: int = 180
 
 
@@ -168,6 +169,9 @@ class PollinationsBackend:
 
 FAST_MODEL_TAGS = ("lightning", "turbo", "hyper", "lcm", "dmd")
 FAST_PRESET = {"steps": 6, "cfg_scale": 1.5, "sampler_name": "DPM++ SDE", "scheduler": "Karras"}
+# Schnell-Modus: 'DPM++ SDE' rechnet jeden Schritt doppelt – 'Euler' + 'SGM Uniform' (Empfehlung für
+# SDXL-Lightning) braucht pro Schritt nur eine Rechnung, das KI-Bild ist damit etwa doppelt so schnell.
+TURBO_PRESET = {"steps": 6, "cfg_scale": 1.5, "sampler_name": "Euler", "scheduler": "SGM Uniform"}
 
 
 def is_fast_model(model_name: str) -> bool:
@@ -222,9 +226,14 @@ class StableDiffusionWebUIBackend:
             "restore_faces": False,
         }
         # Lightning/Turbo-Modelle mit normalen Werten (30 Schritte, CFG 5) ergeben überzeichnete Bilder
-        if is_fast_model(self._active_model()) and self.s.sd_steps > 12:
-            payload.update(FAST_PRESET)
+        if is_fast_model(self._active_model()):
+            if self.s.sd_fast:
+                payload.update(TURBO_PRESET)
+            elif self.s.sd_steps > 12:
+                payload.update(FAST_PRESET)
         payload.update(extra or {})
+        self.last_settings = (f"{mode} {payload['width']}px {payload['steps']} Schritte "
+                              f"{payload['sampler_name']}/{payload.get('scheduler', '')} CFG {payload['cfg_scale']}")
         stop = threading.Event()
         if self.progress_cb:
             threading.Thread(target=self._poll_progress, args=(stop,), daemon=True).start()

@@ -28,7 +28,7 @@ from .data import COUNTRIES, ETHNICITIES, load_user_overrides
 from .forge import ForgeManager, api_enabled, find_launcher
 from .update import check_latest, should_notify
 from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, face_age, list_folder_images,
-                        load_face, parse_ages, rename_face, search_key, trash_files)
+                        load_face, parse_ages, rename_face, safe_filename, search_key, trash_files)
 from .i18n import LANGUAGES, country, ethnicity, get_language, language_label, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
 from .playerlist import Player, load_players
@@ -109,6 +109,14 @@ def pers_short(key: str | None) -> str:
         return ""
     label = personality(key)
     return label.split(" (")[0] if get_language() == "de" else label
+
+
+def surname_key(name: str) -> tuple[str, str]:
+    """Sortierschlüssel Nachname: 'Merijn van Dijk' -> 'dijk', 'Markús Andri Daníelsson Marti' -> 'marti'."""
+    import unicodedata
+    plain = unicodedata.normalize("NFKD", str(name)).encode("ascii", "ignore").decode().casefold().strip()
+    parts = plain.split()
+    return (parts[-1] if parts else "", plain)
 
 
 class GalleryState:
@@ -228,6 +236,45 @@ class UpdateDialog(tk.Toplevel):
 
 
 # ====================================================================== Vorschlagsliste
+class ThemeSwitch(tk.Canvas):
+    """Schiebeschalter Hell ⇄ Dunkel. Knopf links = hell (freie Fläche dunkel), Knopf rechts = dunkel
+    (freie Fläche grau) – die freie Fläche zeigt also, wohin ein Klick umschaltet."""
+
+    W, H = 58, 26
+    GRAY = "#b9c1c8"
+
+    def __init__(self, master, dark: bool, command: Callable[[], None]):
+        c = theme.colors()
+        super().__init__(master, width=self.W, height=self.H, highlightthickness=0, background=c["bg"],
+                         cursor="hand2", takefocus=1)
+        self.dark = dark
+        self.command = command
+        self._draw()
+        self.bind("<Button-1>", self._click)
+        self.bind("<space>", self._click)
+        self.bind("<Return>", self._click)
+
+    def _draw(self) -> None:
+        self.delete("all")
+        w, h, half = self.W, self.H, self.W // 2
+        border = theme.colors()["border"]
+        fill = self.GRAY if self.dark else theme.PALETTES["dark"]["bg"]
+        self.create_rectangle(1, 1, w - 2, h - 2, outline=border, fill="#ffffff", width=1)
+        free = (2, 2, half, h - 2) if self.dark else (half, 2, w - 2, h - 2)
+        self.create_rectangle(*free, outline="", fill=fill)
+        k0 = half if self.dark else 2
+        self.create_rectangle(k0 + 1, 3, k0 + half - 3, h - 4, outline="#a7afb6", fill="#f4f6f7")
+        cx, cy = k0 + (half - 2) // 2, h // 2
+        self.create_oval(cx - 4, cy - 4, cx + 4, cy + 4, outline="#c9cfd4", fill="#eceff1")
+
+    def _click(self, _event=None) -> str:
+        self.dark = not self.dark
+        self._draw()
+        self.update_idletasks()
+        self.after(60, self.command)  # Schalter sichtbar umlegen, dann Oberfläche neu einfärben
+        return "break"
+
+
 class SuggestList:
     """Kleine Liste unter einem Eingabefeld (wie die Vorschläge einer Browser-Suchleiste).
 
@@ -438,6 +485,10 @@ class App(tk.Tk):
         self.after(150, self._bring_to_front)
         if self.warnings:
             self.after(500, lambda: messagebox.showwarning(APP_NAME, "\n".join(self.warnings)))
+        if self.cfg.moved_from:  # Speicherort wurde beim Start nach graphics\faces verschoben
+            settings_mod.save(self.cfg)
+            self.after(700, lambda: messagebox.showinfo(APP_NAME, t("msg.out_moved", old=self.cfg.moved_from,
+                                                                     new=self.cfg.output_dir)))
 
     # ================================================================== Drag and Drop (tkdnd)
     def _init_dnd(self) -> bool:
@@ -476,11 +527,14 @@ class App(tk.Tk):
 
     def _toggle_theme(self) -> None:
         if self._busy():
+            self.theme_switch.dark = self.cfg.theme == "dark"
+            self.theme_switch._draw()
             messagebox.showinfo(APP_NAME, t("msg.lang_busy"))
             return
         self.cfg.theme = "light" if self.cfg.theme == "dark" else "dark"
         self._style()
         self._apply_language(get_language())  # Oberfläche mit den neuen Farben neu aufbauen
+        theme.dark_title_bar(self, self.cfg.theme == "dark")
 
     def _row(self, parent, r: int, label: str, widget, hint: str | None = None) -> None:
         ttk.Label(parent, text=label).grid(row=r, column=0, sticky="w", padx=(8, 6), pady=4)
@@ -697,8 +751,13 @@ class App(tk.Tk):
             v[key] = tk.DoubleVar(self)
         v["forge_dir"] = tk.StringVar(self)
         for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite", "forge_autostart", "check_updates",
-                    "update_prereleases"):
+                    "update_prereleases", "sd_fast"):
             v[key] = tk.BooleanVar(self)
+        # Alterungs-Set: Werte überleben den Neuaufbau (Sprache/Farbschema)
+        old = getattr(self, "_aging_vals", (0, False))
+        v["aging_plus"] = tk.IntVar(self, old[0])
+        v["replace_ingame"] = tk.BooleanVar(self, old[1])
+        v["aging_plus"].trace_add("write", lambda *a: self._update_aging_inputs())
 
         if getattr(self, "accent_line", None) is None:  # schmaler grüner Streifen oben
             self.accent_line = tk.Frame(self, height=4)
@@ -707,10 +766,17 @@ class App(tk.Tk):
         root = self.root_frame = ttk.Frame(self, padding=8)
         root.pack(fill="both", expand=True)
         root.columnconfigure(1, weight=1)
-        root.rowconfigure(0, weight=1)
+        root.rowconfigure(1, weight=1)
+
+        top = ttk.Frame(root)
+        top.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        ttk.Label(top, text=t("theme.light")).pack(side="left")
+        self.theme_switch = ThemeSwitch(top, self.cfg.theme == "dark", self._toggle_theme)
+        self.theme_switch.pack(side="left", padx=8)
+        ttk.Label(top, text=t("theme.dark")).pack(side="left")
 
         left = ttk.Frame(root)
-        left.grid(row=0, column=0, sticky="nsw")
+        left.grid(row=1, column=0, sticky="nsw")
         nb = self.left_nb = ttk.Notebook(left, width=410)
         nb.pack(fill="both", expand=True)
         self._build_tab_player(nb)
@@ -719,10 +785,12 @@ class App(tk.Tk):
         self._build_tab_ai(nb)
 
         right = ttk.Notebook(root)
-        right.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        right.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
         self.right_nb = right
         self._build_gallery(right)
         self._build_playerlist(right)
+        self._apply_tab_order()
+        self._make_tabs_draggable(right)
 
         self._build_bottom(root)
 
@@ -940,6 +1008,8 @@ class App(tk.Tk):
         self._row(t_, 14, t("lbl.gen_size"), ttk.Combobox(t_, textvariable=v["gen_size"], values=[512, 768, 1024],
                                                           width=6), t("hint.gen_size"))
         self._row(t_, 16, t("lbl.delay"), ttk.Spinbox(t_, from_=0, to=60, textvariable=v["delay"], width=6))
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.sd_fast"), variable=v["sd_fast"]).grid(
+            row=17, column=0, columnspan=2, sticky="w", padx=8, pady=(6, 0))
 
 
     # ---- Update-Hinweis
@@ -1200,10 +1270,6 @@ class App(tk.Tk):
         ttk.Label(row1, text=t("aging.years")).pack(side="left", padx=(4, 10))
         # "+ Jahre": jedes markierte Bild wird um so viele Jahre älter (die feste Liste wird dann ausgegraut)
         ttk.Label(row1, text=t("aging.or")).pack(side="left")
-        if "aging_plus" not in self.v:
-            self.v["aging_plus"] = tk.IntVar(self, 0)
-            self.v["replace_ingame"] = tk.BooleanVar(self, False)
-            self.v["aging_plus"].trace_add("write", lambda *a: self._update_aging_inputs())
         ttk.Spinbox(row1, from_=0, to=20, textvariable=self.v["aging_plus"], width=4).pack(side="left", padx=(4, 0))
         ttk.Label(row1, text=t("aging.plus_years")).pack(side="left", padx=(4, 10))
         ttk.Button(row1, text=t("btn.create"), style="Accent.TButton", command=self._aging).pack(side="left")
@@ -1219,7 +1285,7 @@ class App(tk.Tk):
     # ------------------------------------------------------------------ Spielerliste
     def _build_playerlist(self, nb) -> None:
         v = self.v
-        tab = ttk.Frame(nb, padding=6)
+        tab = self.tab_list = ttk.Frame(nb, padding=6)
         nb.add(tab, text=t("tab.list"))
         self._show_mode(self.gmode, force=True)
         tab.columnconfigure(0, weight=1)
@@ -1287,7 +1353,7 @@ class App(tk.Tk):
     def _build_bottom(self, root) -> None:
         v = self.v
         out = ttk.Frame(root)
-        out.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        out.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         out.columnconfigure(1, weight=1)
         ttk.Label(out, text=t("lbl.save_in"), style="Head.TLabel").grid(row=0, column=0, padx=(0, 6))
         ttk.Entry(out, textvariable=v["output_dir"]).grid(row=0, column=1, sticky="ew")
@@ -1297,12 +1363,9 @@ class App(tk.Tk):
         self.lang_btn = ttk.Button(out, text=f"{t('btn.language')}: {LANGUAGES[get_language()]}",
                                    command=self._change_language)
         self.lang_btn.grid(row=0, column=5, padx=(12, 0))
-        dark = self.cfg.theme == "dark"
-        ttk.Button(out, text=t("btn.theme_light") if dark else t("btn.theme_dark"),
-                   command=self._toggle_theme).grid(row=0, column=6, padx=(6, 0))
 
         bottom = ttk.Frame(root)
-        bottom.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        bottom.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         bottom.columnconfigure(5, weight=1)
         ttk.Label(bottom, text=t("lbl.count")).grid(row=0, column=0)
         ttk.Spinbox(bottom, from_=1, to=500, textvariable=v["count"], width=6).grid(row=0, column=1, padx=(4, 12))
@@ -1339,9 +1402,10 @@ class App(tk.Tk):
         set_language(code)
         settings_mod.save(self.cfg)
         players = list(self.players.values())
-        right_tab = self.right_nb.index("current")
+        right_tab = self._right_key()
         left_tab = self.left_nb.index("current")
         self._unpost_list()
+        self._aging_vals = (self._aging_plus(), bool(self.v["replace_ingame"].get()))
         self.root_frame.destroy()
         self.thumb_widgets, self.thumbs, self.thumb_badge, self.players = [], [], [], {}
         self._build()
@@ -1354,7 +1418,7 @@ class App(tk.Tk):
                 self.tree.set(iid, "status", "✓ " + p.image.name)
                 self.tree.item(iid, tags=("ok",))
         self._update_list_info()
-        self.right_nb.select(right_tab)
+        self.right_nb.select(self._right_tabs()[right_tab])
         self.left_nb.select(left_tab)
 
     # ================================================================== Daten <-> UI
@@ -1414,6 +1478,7 @@ class App(tk.Tk):
         v["sd_url"].set(b.sd_url)
         v["sd_steps"].set(b.sd_steps)
         v["sd_cfg"].set(b.sd_cfg)
+        v["sd_fast"].set(b.sd_fast)
         v["gen_size"].set(b.gen_size)
         self._update_mix()
 
@@ -1476,6 +1541,7 @@ class App(tk.Tk):
         b.sd_url = v["sd_url"].get().strip() or b.sd_url
         b.sd_steps = num("sd_steps", 30)
         b.sd_cfg = num("sd_cfg", 5.0, float)
+        b.sd_fast = bool(v["sd_fast"].get())
         b.gen_size = num("gen_size", 768)
 
     # ================================================================== Helfer
@@ -1601,7 +1667,7 @@ class App(tk.Tk):
             self._choose_dir()
             return
         fm = found[0]
-        target = fm / "graphics" / "FM27 Face Generator"
+        target = settings_mod.fm_output_dir(fm)
         ans = messagebox.askyesnocancel(APP_NAME, t("msg.fm_found", fm=fm, target=target))
         if ans is None:
             return
@@ -1699,7 +1765,7 @@ class App(tk.Tk):
         except OSError as exc:
             messagebox.showerror(APP_NAME, str(exc))
             return
-        self.right_nb.select(0)
+        self.right_nb.select(self.tab_new)
         self._show_mode("new")
         jobs = [Job(options=copy.deepcopy(self.cfg.face)) for _ in range(self.cfg.count)]
         self._run(gen, jobs, "batch")
@@ -1747,6 +1813,8 @@ class App(tk.Tk):
                         self.run_timing.append(payload.timing)
                     if job.replace is not None:
                         self.run_replace.append((payload, job.replace))
+                    if job.tag and job.tag in self.players:
+                        payload.player_name = self.players[job.tag].name
                     if replace_idx is not None:
                         self._replace_face(replace_idx, payload)
                     else:
@@ -1780,7 +1848,7 @@ class App(tk.Tk):
                                        + (t("status.finished_err", n=self.errors) if self.errors else "")
                                        + self._timing_text())
                     self._update_list_info()
-                    if run_kind == "aging":
+                    if run_kind in ("aging", "reroll"):
                         self._finish_aging()
                     if self.gmode == "folder":
                         self._load_folder()
@@ -1864,15 +1932,22 @@ class App(tk.Tk):
         """Neu erzeugte Bilder landen immer im Tab 'Neu erstellt'."""
         st = self.gal["new"]
         st.faces.insert(0, face)  # neueste zuerst
+        if getattr(face, "player_name", None):
+            # Spieler aus der Spielerliste: alphabetisch nach Nachnamen (oben), andere Bilder darunter
+            players = sorted((f for f in st.faces if getattr(f, "player_name", None)),
+                             key=lambda f: surname_key(f.player_name))
+            st.faces = players + [f for f in st.faces if not getattr(f, "player_name", None)]
+        idx = st.faces.index(face)
         for old in st.faces[KEEP_RAW:]:
             old.raw = None
         st.marked = set()
         if self.gmode == "new":
             self._rebuild_gallery()
-            self._select(0)
-            self.canvas.yview_moveto(0.0)
+            self._select(idx)
+            if idx == 0:
+                self.canvas.yview_moveto(0.0)
         else:
-            st.selected = 0
+            st.selected = idx
 
     def _replace_face(self, target: tuple[str, int], face: GeneratedFace) -> None:
         mode, idx = target
@@ -1886,11 +1961,64 @@ class App(tk.Tk):
             self._rebuild_gallery()
             self._select(idx)
 
+    # ---- Tabs rechts: per Ziehen mit der Maus umsortieren (Reihenfolge wird gespeichert)
+    def _right_tabs(self) -> dict[str, ttk.Frame]:
+        return {"new": self.tab_new, "folder": self.tab_folder, "list": self.tab_list}
+
+    def _right_key(self) -> str:
+        """Welcher Tab rechts gerade offen ist: 'new', 'folder' oder 'list' (unabhängig von der Reihenfolge)."""
+        current = self.right_nb.select()
+        return next((k for k, w in self._right_tabs().items() if str(w) == current), "new")
+
+    def _apply_tab_order(self) -> None:
+        tabs = self._right_tabs()
+        order = [k for k in (self.cfg.tab_order or []) if k in tabs]
+        order += [k for k in tabs if k not in order]
+        for pos, key in enumerate(order):
+            self.right_nb.insert(pos, tabs[key])
+
+    def _make_tabs_draggable(self, nb: ttk.Notebook) -> None:
+        drag: dict = {"tab": None}
+
+        def tab_at(x: int, y: int) -> int | None:
+            try:
+                return nb.index(f"@{x},{y}")
+            except tk.TclError:
+                return None
+
+        def press(e):
+            if nb.identify(e.x, e.y) in ("label", "tab", "padding", "focus") or tab_at(e.x, e.y) is not None:
+                idx = tab_at(e.x, e.y)
+                drag["tab"] = nb.tabs()[idx] if idx is not None else None
+
+        def motion(e):
+            if drag["tab"] is None:
+                return
+            idx = tab_at(e.x, e.y)
+            if idx is None or nb.tabs()[idx] == drag["tab"]:
+                return
+            nb.insert(idx, drag["tab"])
+            nb.configure(cursor="fleur")
+
+        def release(_e):
+            if drag["tab"] is not None:
+                nb.configure(cursor="")
+                names = {str(w): k for k, w in self._right_tabs().items()}
+                order = [names[w] for w in nb.tabs() if w in names]
+                if order != list(self.cfg.tab_order or []):
+                    self.cfg.tab_order = order
+                    settings_mod.save(self.cfg)
+            drag["tab"] = None
+
+        nb.bind("<ButtonPress-1>", press, add="+")
+        nb.bind("<B1-Motion>", motion, add="+")
+        nb.bind("<ButtonRelease-1>", release, add="+")
+
     # ---- Galerie-Tabs umschalten
     def _on_right_tab(self) -> None:
-        idx = self.right_nb.index("current")
-        if idx in (0, 1):
-            self._show_mode("new" if idx == 0 else "folder")
+        key = self._right_key()
+        if key in ("new", "folder"):
+            self._show_mode(key)
 
     def _show_mode(self, mode: str, force: bool = False) -> None:
         """Hängt die gemeinsame Galerie-Ansicht in den gewählten Tab und zeigt dessen Bilder."""
@@ -2312,7 +2440,7 @@ class App(tk.Tk):
             text += "\n" + t("sel.pers", p=pers_short(m["persoenlichkeit"]))
         if facedrop.is_facedrop_path(face.path):
             pid = facedrop.player_id(face.path)
-            text += "\n" + (t("sel.fd_id", id=pid) if pid else t("sel.fd_real")) + "\n" + t("sel.fd_readonly")
+            text += "\n" + (t("sel.fd_id", id=pid) if pid else t("sel.fd_real")) + "\n" + t("sel.fd_safe")
         elif self._in_game(face):
             text += "\n" + t("sel.ingame")
         if face.source == "log":
@@ -2326,16 +2454,26 @@ class App(tk.Tk):
 
     def _reroll(self) -> None:
         face = self._current()
-        if not face or self._fd_readonly([face]) or not self._prepare():
+        if not face or not self._prepare():
             return
-        # gleicher Dateiname -> Datei wird ersetzt (wichtig für Spielerlisten-Namen)
-        gen = self._make_generator(out_dir=face.path.parent, overwrite=True)
-        self._run(gen, [Job(options=copy.deepcopy(face.options), filename=face.path.stem)], "reroll",
-                  (self.gmode, self.selected))
+        # neues Gesicht im gleichen Alter wie das bisherige Bild (bei gealterten Bildern also das aktuelle Alter)
+        job = Job(options=copy.deepcopy(face.options), age=face_age(face), filename=face.path.stem)
+        if facedrop.is_facedrop_path(face.path):
+            # Bild im Spiel: erst in die Warteschlange, dann mit Sicherungskopie unter gleichem Namen ersetzen
+            folder = ingame.backup_root(self.cfg.output_dir)
+            if not messagebox.askyesno(APP_NAME, t("msg.reroll_fd", name=face.path.name, folder=folder)):
+                return
+            job.out_path = ingame.staging_dir() / f"reroll_{face.path.name}"
+            job.replace = face.path
+            gen = self._make_generator(overwrite=True)
+        else:
+            # gleicher Dateiname -> Datei wird ersetzt (wichtig für Spielerlisten-Namen)
+            gen = self._make_generator(out_dir=face.path.parent, overwrite=True)
+        self._run(gen, [job], "reroll", (self.gmode, self.selected))
 
     def _update_aging_inputs(self) -> None:
         """'+ Jahre' > 0 graut die feste Alters-Liste aus; FaceDrop-Zeile nur in Galerie → FaceDrop."""
-        if not hasattr(self, "ages_entry"):
+        if not hasattr(self, "ages_entry") or not self.ages_entry.winfo_exists():
             return
         try:
             plus = int(self.v["aging_plus"].get() or 0)
@@ -2461,7 +2599,7 @@ class App(tk.Tk):
 
     def _on_key_select_all(self, event) -> None:
         if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
-                and self.right_nb.index("current") in (0, 1):
+                and self._right_key() in ("new", "folder"):
             self._select_all()
 
     def _load_images(self) -> None:
@@ -2472,7 +2610,7 @@ class App(tk.Tk):
         if not paths:
             return
         self._read_from_ui()
-        self.right_nb.select(0)
+        self.right_nb.select(self.tab_new)
         self._show_mode("new")
         loaded, failed = [], []
         for p in paths:
@@ -2554,12 +2692,12 @@ class App(tk.Tk):
 
     def _on_key_delete(self, event) -> None:
         if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
-                and self.right_nb.index("current") in (0, 1):
+                and self._right_key() in ("new", "folder"):
             self._delete()
 
     def _on_key_copy(self, event) -> None:
         if not isinstance(event.widget, (tk.Entry, ttk.Entry, ttk.Combobox, ttk.Spinbox, tk.Text)) \
-                and self.right_nb.index("current") in (0, 1):
+                and self._right_key() in ("new", "folder"):
             self._copy_files()
 
     def _copy_files(self) -> None:
@@ -2577,12 +2715,12 @@ class App(tk.Tk):
     def _fd_readonly(self, faces: list[GeneratedFace]) -> bool:
         """Bilder in FaceDrops Ordnern werden nie verändert – True (mit Hinweis), wenn welche dabei sind."""
         if any(facedrop.is_facedrop_path(f.path) for f in faces):
-            messagebox.showinfo(APP_NAME, t("msg.fd_readonly"))
+            messagebox.showinfo(APP_NAME, t("msg.fd_protected"))
             return True
         return False
 
     def _on_key_rename(self, event) -> None:
-        if self.right_nb.index("current") in (0, 1):
+        if self._right_key() in ("new", "folder"):
             self._rename()
 
     def _reveal(self) -> None:
@@ -2618,6 +2756,7 @@ class App(tk.Tk):
             iid = self.tree.insert("", "end")
             self.players[iid] = p
             self._refresh_row(iid)
+        self._mark_existing_images()
         self._update_list_info()
         if warnings:
             messagebox.showwarning(APP_NAME, "\n\n".join(warnings))
@@ -2668,6 +2807,35 @@ class App(tk.Tk):
             self.players.pop(iid, None)
         self._update_list_info()
 
+    def _existing_image(self, p: Player, fd_uids: dict[str, Path]) -> Path | None:
+        """Gibt es für den Spieler schon ein Bild? Speicherort (Name, UID oder Name_UID, auch im Länder-Unterordner)
+        oder – über die UID – ein Bild im Spiel bei FaceDrop."""
+        base = Path(self.v["output_dir"].get().strip() or self.cfg.output_dir)
+        stems = {safe_filename(x) for x in (p.name, p.uid, f"{p.name}_{p.uid}" if p.uid else "") if x}
+        dirs = [base] + [base / c for c in {p.country, p.nation_raw} if c]
+        for d in dirs:
+            for stem in stems:
+                f = d / (stem + ".png")
+                if f.is_file():
+                    return f
+        return fd_uids.get(p.uid) if p.uid else None
+
+    def _mark_existing_images(self) -> None:
+        fd_uids: dict[str, Path] = {}
+        if self.fd_dir and any(p.uid for p in self.players.values()):
+            try:
+                fd_uids = {facedrop.player_id(f): f for f in facedrop.all_face_images(self.fd_dir)}
+            except OSError:
+                fd_uids = {}
+        for iid, p in self.players.items():
+            if p.image and p.image.exists():
+                continue
+            found = self._existing_image(p, fd_uids)
+            p.image = found
+            if found and self.tree.exists(iid):
+                self.tree.set(iid, "status", "✓ " + found.name)
+                self.tree.item(iid, tags=("ok",))
+
     def _player_filename(self, p: Player) -> str:
         mode = self.cfg.list_name_mode
         if mode == "UID" and p.uid:
@@ -2686,7 +2854,11 @@ class App(tk.Tk):
                 messagebox.showinfo(APP_NAME, t("msg.mark_players"))
                 return
         elif which == "missing":
+            self._mark_existing_images()  # auch Bilder von früher (anderer Start, FaceDrop) zählen
             iids = [i for i in self.tree.get_children() if not self.players[i].image]
+            if not iids:
+                messagebox.showinfo(APP_NAME, t("msg.all_have_image"))
+                return
         else:
             iids = list(self.tree.get_children())
         if not iids or not self._prepare():

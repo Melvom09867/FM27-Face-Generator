@@ -41,6 +41,11 @@ class Job:
     out_dir: Path | None = None        # Zielordner nur für diesen Job (sonst der des Generators)
     out_path: Path | None = None       # fester Zielpfad (überschreibt) – z. B. Warteschlange für "Im Spiel ersetzen"
     replace: Path | None = None        # dieses FaceDrop-Bild wird nach dem Durchlauf durch das neue ersetzt
+    # Alterung immer vom ERSTEN Bild aus (Ausgangsbild), nie vom zuletzt gealterten – sonst verändert sich das Gesicht
+    # mit jeder Saison weiter. base_image/base_age werden ins neue Bild übernommen.
+    base_image: Image.Image | None = None
+    base_age: int | None = None
+    rebuild_base: bool = False         # Ausgangsbild fehlt: erst neu erzeugen (gleicher Seed, Ausgangsalter)
 
 
 @dataclass
@@ -55,6 +60,9 @@ class GeneratedFace:
     source: str = "generated"
     legacy: bool = False               # True = nur fertige Beschreibung bekannt (Alter wird darin ersetzt)
     timing: dict = field(default_factory=dict)  # Sekunden: "gen" (KI-Bild), "post" (Freistellen + Speichern)
+    base: Image.Image | None = None    # Ausgangsbild (erstes KI-Bild dieses Spielers) für weitere Alterungen
+    base_age: int | None = None
+    player_name: str | None = None     # Name aus der Spielerliste (Sortierung in 'Neu erstellt')
 
 
 def _slug(text: str) -> str:
@@ -150,7 +158,13 @@ class Generator:
             if job.age is not None:
                 meta["alter"] = job.age
             fp = FacePrompt(prompt=job.prompt_text, negative=fp.negative, seed=fp.seed, meta=meta)
-        if job.init_image is not None and getattr(self.backend, "supports_img2img", False):
+        img2img = getattr(self.backend, "supports_img2img", False)
+        if job.rebuild_base and img2img and job.base_age is not None and not job.prompt_text:
+            # Ausgangsbild fehlt (z. B. Bild aus 1.8.7.4): gleiches Gesicht im Ausgangsalter neu malen
+            job.base_image = self.backend.generate(build_prompt(job.options, seed=job.seed, age=job.base_age))
+            job.init_image = job.base_image
+            job.rebuild_base = False
+        if job.init_image is not None and img2img:
             raw = self.backend.img2img(fp, job.init_image, AGING_STRENGTH)
         else:
             raw = self.backend.generate(fp)
@@ -174,14 +188,16 @@ class Generator:
             if not self.overwrite:
                 path = _unique(path)
         legacy = bool(job.prompt_text)
-        save_png(img, path, {META_KEY: face_info(fp, job.options, legacy)})
+        # Ausgangsbild: bei Alterung das übergebene, sonst ist dieses Bild selbst das Ausgangsbild
+        base, base_age = (job.base_image, job.base_age) if job.base_image is not None else (raw, fp.meta.get("alter"))
+        save_png(img, path, {META_KEY: face_info(fp, job.options, legacy, base_age), BASE_KEY: encode_base(base)})
         if job.out_path is None:
             self._log(path, fp)
         cache_raw(raw, fp.seed, fp.meta.get("alter"))
         timing = {"gen": round(t_gen, 2), "post": round(time.perf_counter() - t0, 2)}
-        _log_timing(path.name, timing)
+        _log_timing(path.name, timing, getattr(self.backend, "last_settings", ""))
         return GeneratedFace(path=path, image=img, prompt=fp, options=copy.deepcopy(job.options), raw=raw,
-                             legacy=legacy, timing=timing)
+                             legacy=legacy, timing=timing, base=base, base_age=base_age)
 
     def generate_one(self, face_opts: FaceOptions, index: int = 1, seed: int | None = None) -> GeneratedFace:
         return self.generate_job(Job(options=face_opts, seed=seed), index)
@@ -301,14 +317,24 @@ def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0) -> list[
             return []
         ages = [min(45, base_age + relative)]
     stem = face.path.stem
-    init = face.raw if face.raw is not None else as_init_image(face.image)
+    # Vorlage ist immer das Ausgangsbild (erstes KI-Bild), nicht das zuletzt gealterte Bild
+    origin, origin_age, rebuild = face.base, face.base_age, False
+    if origin is None and origin_age is not None and face.source != "unknown":
+        origin = load_cached_raw(face.prompt.seed, origin_age)
+    if origin is None and face.source == "metadata" and not face.legacy and origin_age is not None \
+            and origin_age != base_age:
+        rebuild = True  # nur das gealterte Bild ist da -> Ausgangsbild mit gleichem Seed neu erzeugen
+    if origin is None and not rebuild:
+        origin = face.raw if face.raw is not None else as_init_image(face.image)
+        origin_age = base_age
     gender = face.prompt.meta.get("geschlecht", face.options.gender)
     jobs = []
     for age in ages:
         if age == base_age:
             continue
         job = Job(options=copy.deepcopy(face.options), seed=face.prompt.seed, age=age,
-                  filename=aging_name(stem, age), init_image=init)
+                  filename=aging_name(stem, age), init_image=origin, base_image=origin, base_age=origin_age,
+                  rebuild_base=rebuild)
         if face.legacy:
             job.prompt_text = reage_prompt(face.prompt.prompt, age, gender)
             job.meta = dict(face.prompt.meta)
@@ -320,14 +346,42 @@ def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0) -> list[
 # Bildinfos in der PNG, Rohbild-Zwischenspeicher, Laden vorhandener Bilder
 # ---------------------------------------------------------------------------
 META_KEY = "fm27facegen"
+BASE_KEY = "fm27facegen_base"  # Ausgangsbild (JPEG, Base64) – damit jede Alterung vom selben Gesicht ausgeht
+BASE_SIZE = 512
 RAW_CACHE_KEEP = 400  # so viele Rohbilder bleiben im Zwischenspeicher (je ca. 100–300 KB)
 
 
-def face_info(fp: FacePrompt, options: FaceOptions, legacy: bool = False) -> str:
+def face_info(fp: FacePrompt, options: FaceOptions, legacy: bool = False, base_age=None) -> str:
     """JSON mit allem, was für ein späteres Alterungs-Set nötig ist."""
     data = {"v": 1, "seed": fp.seed, "age": fp.meta.get("alter"), "legacy": legacy,
-            "options": asdict(options), "prompt": fp.prompt, "meta": fp.meta}
+            "options": asdict(options), "prompt": fp.prompt, "meta": fp.meta,
+            "base_age": base_age if base_age is not None else fp.meta.get("alter")}
     return json.dumps(data, ensure_ascii=False, default=str)
+
+
+def encode_base(img: Image.Image | None) -> str:
+    """Ausgangsbild klein als JPEG/Base64 (ca. 30–50 KB) – FM und FaceDrop ignorieren den Text-Block."""
+    if img is None:
+        return ""
+    import base64
+    import io
+    im = img.convert("RGB")
+    im.thumbnail((BASE_SIZE, BASE_SIZE))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=88)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def decode_base(text: str | None) -> Image.Image | None:
+    if not text:
+        return None
+    try:
+        import base64
+        import io
+        with Image.open(io.BytesIO(base64.b64decode(text))) as im:
+            return im.convert("RGB")
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def raw_cache_dir() -> Path:
@@ -419,7 +473,7 @@ def list_folder_images(base: str | Path, limit: int = 2000) -> list[Path]:
     return files[:limit]
 
 
-def _log_timing(name: str, timing: dict) -> None:
+def _log_timing(name: str, timing: dict, settings: str = "") -> None:
     """Zeitmessung je Bild (%APPDATA%\\FM27FaceGenerator\\timing.log) – zeigt, wo die Zeit hängt."""
     try:
         from .settings import config_dir
@@ -429,7 +483,7 @@ def _log_timing(name: str, timing: dict) -> None:
             log.write_text("", encoding="utf-8")
         with log.open("a", encoding="utf-8") as f:
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  KI {timing['gen']:.1f} s  "
-                    f"Nachbearbeitung {timing['post']:.1f} s  {name}\n")
+                    f"Nachbearbeitung {timing['post']:.1f} s  {name}" + (f"  [{settings}]" if settings else "") + "\n")
     except OSError:
         pass
 
@@ -447,6 +501,7 @@ def load_face(path: str | Path, fallback: FaceOptions | None = None) -> Generate
     with Image.open(path) as im:
         im.load()
         info_text = im.info.get(META_KEY)
+        base_img = decode_base(im.info.get(BASE_KEY))
         image = im.convert("RGBA") if ("A" in im.getbands() or "transparency" in im.info) else im.convert("RGB")
     fallback = copy.deepcopy(fallback or FaceOptions())
 
@@ -459,8 +514,12 @@ def load_face(path: str | Path, fallback: FaceOptions | None = None) -> Generate
                 fp = FacePrompt(prompt=data["prompt"], negative=NEGATIVE_PROMPT, seed=seed, meta=data.get("meta", {}))
             else:
                 fp = build_prompt(options, seed=seed, age=int(age) if age is not None else None)
+            base_age = data.get("base_age")
+            if base_age is None:  # Bild aus 1.8.7.4 oder älter: Ausgangsalter = Alter in den Einstellungen
+                base_age = options.age_min if options.age_min == options.age_max else None
             return GeneratedFace(path=path, image=image, prompt=fp, options=options,
-                                 raw=load_cached_raw(seed, fp.meta.get("alter")), source="metadata", legacy=legacy)
+                                 raw=load_cached_raw(seed, fp.meta.get("alter")), source="metadata", legacy=legacy,
+                                 base=base_img, base_age=int(base_age) if base_age is not None else None)
         except (ValueError, KeyError, TypeError):
             pass  # beschädigte Infos -> wie Bild ohne Infos behandeln
 

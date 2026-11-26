@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "laender.json okunamadı: {e}",
     "data.bad_entry": "laender.json: '{name}' girdisinin biçimi geçersiz",
     "data.unknown_eth": "laender.json: '{name}' bilinmeyen etnik kökenler içeriyor {keys}",
+    'theme.light': 'Açık',
+    'theme.dark': 'Koyu',
+    'chk.sd_fast': 'Lightning modelleri için hızlı mod (yaklaşık iki kat hızlı, biraz daha az ayrıntı)',
+    'msg.out_moved': "Kayıt klasörü artık FM'in yüz klasöründe:\n{new}\n\nTüm görseller ve yedek şuradan oraya taşındı:\n{old}",
+    'msg.all_have_image': 'Listedeki tüm oyuncuların zaten görseli var.',
+    'msg.reroll_fd': 'Oyundaki {name} için yeni yüz oluşturulsun mu?\n\nYeni görsel aynı adla mevcut görselin yerine geçer. Eski görsel önce şuraya yedeklenir:\n{folder}\n(Geri alınabilir.)',
+    'msg.fd_protected': "Bu görsel FaceDrop'a ait. Oyunda bir şey bozulmasın diye burada yeniden adlandırılmaz veya silinmez.\n\n'Yeniden üret' ve yaşlanma seti çalışır – oyunda yalnızca yedek alınarak değiştirilir.",
+    'sel.fd_safe': 'Oyunda (FaceDrop) – yalnızca yedekle değiştirilir',
 }
 
 OPTIONS = {

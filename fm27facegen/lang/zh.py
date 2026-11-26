@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "无法读取 laender.json：{e}",
     "data.bad_entry": "laender.json：条目 '{name}' 格式无效",
     "data.unknown_eth": "laender.json：'{name}' 包含未知族裔 {keys}",
+    'theme.light': '浅色',
+    'theme.dark': '深色',
+    'chk.sd_fast': 'Lightning 模型快速模式（约快一倍，细节略少）',
+    'msg.out_moved': '保存文件夹现在位于 FM 的头像文件夹：\n{new}\n\n所有图片和备份已从以下位置移到这里：\n{old}',
+    'msg.all_have_image': '列表中的所有球员都已有图片。',
+    'msg.reroll_fd': '要为游戏中的 {name} 生成新面孔吗？\n\n新图片将以相同名称替换当前图片。旧图片会先备份到：\n{folder}\n（可以撤销。）',
+    'msg.fd_protected': '此图片属于 FaceDrop。为免损坏游戏，此处不会重命名或删除它。\n\n“重新生成”和年龄变化组可以使用 – 游戏中的图片只会在备份后替换。',
+    'sel.fd_safe': '游戏中（FaceDrop）– 仅在备份后替换',
 }
 
 OPTIONS = {

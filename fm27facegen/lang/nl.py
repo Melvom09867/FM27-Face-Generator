@@ -291,6 +291,14 @@ STRINGS = {
     "data.read_error": "laender.json kon niet worden gelezen: {e}",
     "data.bad_entry": "laender.json: item '{name}' heeft een ongeldig formaat",
     "data.unknown_eth": "laender.json: '{name}' bevat onbekende etniciteiten {keys}",
+    'theme.light': 'Licht',
+    'theme.dark': 'Donker',
+    'chk.sd_fast': 'Snelle modus voor Lightning-modellen (ongeveer twee keer zo snel, iets minder detail)',
+    'msg.out_moved': 'De opslagmap staat nu in de gezichtenmap van FM:\n{new}\n\nAlle afbeeldingen en de reservekopie zijn daarheen verplaatst vanuit\n{old}',
+    'msg.all_have_image': 'Alle spelers in de lijst hebben al een afbeelding.',
+    'msg.reroll_fd': 'Nieuw gezicht maken voor {name} in het spel?\n\nDe nieuwe afbeelding vervangt de huidige onder dezelfde naam. De oude afbeelding wordt eerst bewaard in:\n{folder}\n(Ongedaan maken is mogelijk.)',
+    'msg.fd_protected': "Deze afbeelding hoort bij FaceDrop. Om het spel niet te beschadigen wordt ze hier niet hernoemd of verwijderd.\n\n'Opnieuw' en de verouderingsset werken – in het spel wordt alleen vervangen met een reservekopie.",
+    'sel.fd_safe': 'In het spel (FaceDrop) – alleen vervangen met reservekopie',
 }
 
 OPTIONS = {
