@@ -65,7 +65,7 @@ At the bottom of the window next to **"Save to:"**:
 
 - **"Find FM folder"** – automatically finds `Documents\Sports Interactive\Football Manager …`
   (or your own FM user data folder if you moved it with the Steam launch option `user_data_location="…"`)
-  and suggests `…\graphics\FM27 Face Generator` (choose "No" to pick a folder inside the FM directory yourself).
+  and suggests `…\graphics\faces\FM27 Face Generator` (choose "No" to pick a folder inside the FM directory yourself).
 - **"Choose folder…"** – pick any folder.
 - **"Open"** – opens the folder in Explorer.
 

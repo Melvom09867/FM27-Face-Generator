@@ -66,7 +66,7 @@ Unten im Fenster bei **„Speichern in:“**:
 
 - **„FM-Ordner suchen“** – findet automatisch `Dokumente\Sports Interactive\Football Manager …`
   (oder deinen eigenen FM-Benutzerordner, falls du ihn per Steam-Startoption `user_data_location="…"` verlegt hast)
-  und schlägt `…\graphics\FM27 Face Generator` vor (mit „Nein“ wählst du selbst einen Ordner innerhalb des FM-Verzeichnisses).
+  und schlägt `…\graphics\faces\FM27 Face Generator` vor (mit „Nein“ wählst du selbst einen Ordner innerhalb des FM-Verzeichnisses).
 - **„Ordner wählen…“** – beliebigen Ordner auswählen.
 - **„Öffnen“** – öffnet den Ordner im Explorer.
 

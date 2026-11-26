@@ -3,6 +3,29 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.5
+---------------
+Fixes
+- Switching light/dark no longer freezes the program (the window stayed empty). Also affected changing the
+  language.
+- Season +1 / ageing: every ageing now starts from the player's first face instead of the last aged image –
+  images no longer get "wilder" every season. Already distorted images from 1.8.7.4 get their original face
+  re-created on the next ageing.
+
+New
+- "Light ⇄ Dark" switch at the very top left.
+- Save folder is now ...\graphics\faces\FM27 Face Generator (incl. backup). The old folder is moved there
+  automatically on first start; "Undo" keeps working.
+- "Re-roll" also works for images in the game (FaceDrop): new face at the same age, same file name, old image
+  backed up first (can be undone).
+- Player list: detects players that already have an image (save folder, or by UID in FaceDrop) –
+  "Only without image" skips them.
+- "New": players from the player list sorted alphabetically by surname.
+- Drag the tabs "New / Gallery / Player list" with the mouse to reorder them (saved).
+- AI tab: fast mode for Lightning models (about twice as fast, slightly less detail – for testing).
+- timing.log now also lists the Forge settings per image (size, steps, sampler).
+
+
 Version 1.8.7.4
 ---------------
 Ageing set

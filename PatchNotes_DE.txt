@@ -3,6 +3,29 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.5
+---------------
+Fehlerbehebungen
+- Hell/Dunkel umschalten hängt sich nicht mehr auf (die Oberfläche blieb leer, nur Task-Manager half). Betraf
+  auch den Sprachwechsel.
+- Saison +1 / Alterung: Jede Alterung geht jetzt vom ersten Gesicht des Spielers aus statt vom zuletzt
+  gealterten Bild – die Bilder werden nicht mehr mit jeder Saison "abgefahrener". Bereits verzerrte Bilder aus
+  1.8.7.4 bekommen beim nächsten Altern ihr Ausgangsgesicht neu gemalt.
+
+Neu
+- Schalter "Hell ⇄ Dunkel" ganz oben links.
+- Speicherort ist jetzt ...\graphics\faces\FM27 Face Generator (inkl. Sicherungskopie). Der bisherige Ordner
+  wird beim ersten Start automatisch dorthin verschoben, "Rückgängig" funktioniert weiter.
+- "Neu würfeln" geht auch bei Bildern im Spiel (FaceDrop): neues Gesicht im gleichen Alter, gleicher Dateiname,
+  altes Bild vorher in die Sicherungskopie (rückgängig machbar).
+- Spielerliste: erkennt Spieler, die schon ein Bild haben (Speicherort oder per UID in FaceDrop) –
+  "Nur ohne Bild" überspringt sie.
+- "Neu erstellt": Spieler aus der Spielerliste alphabetisch nach Nachnamen.
+- Tabs "Neu erstellt / Galerie / Spielerliste" per Maus ziehen und selbst anordnen (wird gespeichert).
+- KI-Tab: Schnell-Modus für Lightning-Modelle (ca. doppelt so schnell, etwas weniger Details – zum Testen).
+- timing.log enthält jetzt auch die Forge-Einstellungen je Bild (Größe, Schritte, Sampler).
+
+
 Version 1.8.7.4
 ---------------
 Alterungs-Set
