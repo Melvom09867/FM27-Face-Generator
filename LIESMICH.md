@@ -194,23 +194,29 @@ Die Verteilung wird direkt unter der Auswahl angezeigt. „—“ bedeutet: kein
 
 So bekommt jeder deiner Jugendspieler automatisch ein passendes Gesicht – mit seinem Namen als Dateiname.
 
-**In Football Manager exportieren:**
-1. Die Spielerliste öffnen (z. B. Jugendmannschaft oder Jugendspieler-Vorschau).
-2. Die Ansicht so anpassen, dass mindestens die Spalten **Name**, **Nat** (Nationalität) und **Alter**
-   sichtbar sind. Optional: **2. Nationalität**, **Persönlichkeit** und **UID** (Eindeutige ID).
-3. Alle Spieler markieren (**Strg + A**), dann **Strg + P** („Bildschirm drucken“).
-4. **Webseite** (`.html`) oder **Textdatei** (`.txt`) wählen und speichern.
+**In Football Manager exportieren (mit dem FM27 Exporter):**
+1. **FM27 Exporter** herunterladen: [FM27 Print Screen Export | FM Scout](https://www.fmscout.com/a-fm27-exporter.html)
+2. FM schließen. In Steam bei Football Manager 27: **Verwalten → Eigenschaften → Installierte Dateien → Durchsuchen**.
+   Dort den Ordner `BepInEx` und darin `plugins` öffnen. Im Download liegt im gleichen Ordner `FM27Exporter` –
+   diesen Ordner dort hineinkopieren. Der erste Start von FM dauert danach ein paar Minuten.
+3. Im Spiel eine Spielerliste öffnen (z. B. Kader, Jugendmannschaft oder Suche). Sichtbar sein sollten **Name**,
+   **Nat** (Nationalität) und **Alter**. Optional: **2. Nationalität**, **Persönlichkeit** und **UID** (Eindeutige ID).
+4. **Alle Spieler ohne Bild markieren**, mit der Maus über die Liste fahren und **F8** drücken
+   (ist höchstens ein Spieler markiert, wird die ganze Liste exportiert).
+5. Der Exporter speichert drei Dateien (`.html`, `.rtf`, `.csv`) in
+   `Dokumente\Sports Interactive\Football Manager 27\exports`.
 
 **Im Generator:**
-1. Rechts den Tab **„Spielerliste (FM-Import)“** öffnen → **„Liste laden…“** → Datei wählen.
+1. Rechts den Tab **„Spielerliste (FM-Import)“** öffnen → **„Liste laden…“** → **nur eine** der drei Dateien wählen.
 2. Prüfen: Spieler mit **orangem** Land wurden nicht erkannt – markieren und unten bei „Land … setzen“ korrigieren.
 3. **Dateiname** wählen: `Name` (z. B. `Jonas Müller.png`), `UID` oder `Name_UID`.
 4. **„Bei 2. Nationalität“** legt fest, wie Spieler mit zwei Nationalitäten aussehen (siehe Tabelle oben).
-5. **„Für alle generieren“** (oder „Für Auswahl“ / „Nur ohne Bild“). Der Status zeigt ✓ und den Dateinamen.
+5. **Geschlecht** neben den Knöpfen wählen (FM exportiert es nicht, Standard: Männlich), dann **„Für alle
+   generieren“** (oder „Für Auswahl“ / „Nur ohne Bild“). Der Status zeigt ✓ und den Dateinamen.
    Doppelklick auf einen Spieler öffnet sein Bild.
 
-Alter, Land, 2. Nationalität und Persönlichkeit kommen aus der Liste; Geschlecht, Aussehen und Hintergrund aus
-den Einstellungen links. Spieler ohne Persönlichkeit in der Liste bekommen die Einstellung aus dem Abschnitt „Persönlichkeit“ im Tab **Spieler**.
+Alter, Land, 2. Nationalität und Persönlichkeit kommen aus der Liste, das Geschlecht aus der Auswahl neben den
+Knöpfen; Aussehen und Hintergrund aus den Einstellungen links. Spieler ohne Persönlichkeit in der Liste bekommen die Einstellung aus dem Abschnitt „Persönlichkeit“ im Tab **Spieler**.
 Unter der Liste kannst du Land, 2. Land und Persönlichkeit für markierte Spieler nachträglich ändern.
 Eine eigene CSV-Datei (z. B. aus Excel) geht auch – Kopfzeile z. B. `Name;Nation;Alter;2. Nation;Persönlichkeit;UID`.
 

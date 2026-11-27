@@ -3,6 +3,27 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.6
+---------------
+Spielerliste (FM-Import)
+- Neue Anleitung "So exportierst du aus FM" für den FM27 Exporter (F8 im Spiel) – mit anklickbarem Download-Link.
+- Geschlecht direkt an den Generier-Knöpfen wählen (Standard: Männlich). FM exportiert kein Geschlecht – bisher
+  kam es aus der Einstellung links, sodass z. B. alle Spieler ein Frauengesicht bekommen konnten.
+- Neuer Knopf "Alle markieren" (grün umrandet); "Markierte entfernen" sitzt jetzt mit Abstand über
+  "Für alle generieren".
+- Spieler erneut generieren ersetzt sein Bild, statt "Name_2.png" daneben anzulegen.
+- Der Zähler ("21 Spieler · 0 mit Bild") stimmt jetzt auch, wenn alle Spieler entfernt wurden.
+
+Neu erstellt
+- Bilder, die per FaceDrop ins Spiel gezogen wurden, verschwinden aus "Neu erstellt" (sie stehen dann in der
+  Galerie). Die Datei selbst bleibt erhalten.
+- Jedes Bild steht nur einmal in der Liste.
+
+Bildqualität
+- Kein grauer Saum mehr an Haaren und Schultern: Randpixel bekommen die Farbe von Haar/Haut statt des alten
+  Hintergrunds, die Kante ist minimal enger, und beim Nachschärfen wird die Transparenz nicht mehr mitgeschärft.
+
+
 Version 1.8.7.5
 ---------------
 Fehlerbehebungen

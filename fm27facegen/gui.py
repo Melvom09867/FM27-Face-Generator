@@ -40,6 +40,8 @@ FOLDER_MAX = 2000  # so viele Bilder zeigt die Ordner-Galerie höchstens (die ne
 THUMB = 125
 PREVIEW = 250
 KEEP_RAW = 40  # so viele Original-KI-Bilder bleiben für Alterungs-Sets im Speicher
+EXPORTER_URL = "https://www.fmscout.com/a-fm27-exporter.html"
+EXPORTER_TITLE = "FM27 Exporter - Export Data: FM27 Print Screen Export | FM Scout"
 LIST_NAME_MODES = ["Name", "UID", "Name_UID"]
 AUTO_ETH = "auto_country"
 
@@ -756,6 +758,7 @@ class App(tk.Tk):
         # Alterungs-Set: Werte überleben den Neuaufbau (Sprache/Farbschema)
         old = getattr(self, "_aging_vals", (0, False))
         v["aging_plus"] = tk.IntVar(self, old[0])
+        v["list_gender"] = tk.StringVar(self, self.cfg.list_gender if self.cfg.list_gender in GENDERS else "Männlich")
         v["replace_ingame"] = tk.BooleanVar(self, old[1])
         v["aging_plus"].trace_add("write", lambda *a: self._update_aging_inputs())
 
@@ -1294,8 +1297,7 @@ class App(tk.Tk):
         bar = ttk.Frame(tab)
         bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Button(bar, text=t("btn.load_list"), command=self._load_list).pack(side="left")
-        ttk.Button(bar, text=t("btn.export_help"),
-                   command=lambda: messagebox.showinfo(APP_NAME, t("help.export"))).pack(side="left", padx=6)
+        ttk.Button(bar, text=t("btn.export_help"), command=self._export_help).pack(side="left", padx=6)
         ttk.Label(bar, text=t("lbl.filename")).pack(side="left", padx=(12, 4))
         self._ocombo(bar, "list_name_mode", LIST_NAME_MODES, lambda k: opt("list_name", k), width=10).pack(side="left")
         ttk.Label(bar, text=t("lbl.second_nat")).pack(side="left", padx=(12, 4))
@@ -1337,17 +1339,27 @@ class App(tk.Tk):
             widget.grid(row=1 + col // 2, column=(col % 2) * 3 + 1, sticky="w", pady=2)
             ttk.Button(edit, text=t("btn.set"), width=9, command=lambda w=which: self._set_list_value(w)).grid(
                 row=1 + col // 2, column=(col % 2) * 3 + 2, sticky="w", padx=(4, 14), pady=2)
-        ttk.Button(edit, text=t("btn.remove"), command=self._remove_players).grid(row=2, column=3, columnspan=3,
-                                                                                  sticky="w", pady=2)
+        ttk.Button(edit, text=t("btn.select_all"), style="Outline.TButton", command=self._select_all_players).grid(
+            row=2, column=3, columnspan=3, sticky="w", pady=2)
 
         run = ttk.Frame(tab)
         run.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+        run.columnconfigure(0, weight=1)
+        ttk.Button(run, text=t("btn.remove"), command=self._remove_players).grid(row=0, column=5, sticky="e",
+                                                                                 pady=(0, 14))
         self.list_info = ttk.Label(run, text=t("list.none"), style="Hint.TLabel")
-        self.list_info.pack(side="left")
-        ttk.Button(run, text=t("btn.gen_all"), command=lambda: self._generate_list("all")).pack(side="right")
-        ttk.Button(run, text=t("btn.gen_missing"), command=lambda: self._generate_list("missing")).pack(side="right",
-                                                                                                        padx=6)
-        ttk.Button(run, text=t("btn.gen_selected"), command=lambda: self._generate_list("selected")).pack(side="right")
+        self.list_info.grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 14))
+        # FM exportiert kein Geschlecht – deshalb direkt an den Generier-Knöpfen wählen (Standard: Männlich)
+        gf = ttk.Frame(run)
+        gf.grid(row=1, column=1, padx=(8, 10))
+        ttk.Label(gf, text=t("lbl.gender") + ":").pack(side="left", padx=(0, 4))
+        for g in GENDERS:
+            ttk.Radiobutton(gf, text=opt("gender", g), value=g, variable=v["list_gender"]).pack(side="left", padx=2)
+        ttk.Button(run, text=t("btn.gen_selected"), command=lambda: self._generate_list("selected")).grid(row=1,
+                                                                                                          column=3)
+        ttk.Button(run, text=t("btn.gen_missing"), command=lambda: self._generate_list("missing")).grid(
+            row=1, column=4, padx=6)
+        ttk.Button(run, text=t("btn.gen_all"), command=lambda: self._generate_list("all")).grid(row=1, column=5)
 
     # ------------------------------------------------------------------ untere Leiste
     def _build_bottom(self, root) -> None:
@@ -1527,6 +1539,7 @@ class App(tk.Tk):
         c.overwrite = bool(v["overwrite"].get())
         c.list_name_mode = self._oget("list_name_mode", "Name")
         c.list_parent_mode = self._oget("list_parent_mode", "Zufällig")
+        c.list_gender = self.v["list_gender"].get() if self.v["list_gender"].get() in GENDERS else "Männlich"
         c.aging_ages = v["aging_ages"].get()
         p = c.process
         p.zoom = round(num("zoom", 1.6, float), 2)
@@ -1931,6 +1944,7 @@ class App(tk.Tk):
     def _add_face(self, face: GeneratedFace) -> None:
         """Neu erzeugte Bilder landen immer im Tab 'Neu erstellt'."""
         st = self.gal["new"]
+        st.faces = [f for f in st.faces if f.path != face.path]  # ersetztes Bild (gleicher Name) nicht doppelt
         st.faces.insert(0, face)  # neueste zuerst
         if getattr(face, "player_name", None):
             # Spieler aus der Spielerliste: alphabetisch nach Nachnamen (oben), andere Bilder darunter
@@ -2205,8 +2219,30 @@ class App(tk.Tk):
             except OSError:
                 pass
         self.fd_sizes = sizes
+        if self._drop_ingame_from_new():
+            return
         if self.gmode == "new" or self.gal_src == "own":
             self._refresh_badges()
+
+    def _drop_ingame_from_new(self) -> bool:
+        """Bilder aus 'Neu erstellt', die per FaceDrop im Spiel sind, aus 'Neu erstellt' nehmen – sie stehen
+        dann in der Galerie. Die Datei selbst bleibt unangetastet."""
+        st = self.gal["new"]
+        keep = [f for f in st.faces if facedrop.is_facedrop_path(f.path) or not self._in_game(f)]
+        if len(keep) == len(st.faces):
+            return False
+        current = st.faces[st.selected] if self.gmode != "new" and st.selected is not None \
+            and 0 <= st.selected < len(st.faces) else (self._current() if self.gmode == "new" else None)
+        st.faces = keep
+        st.marked = set()
+        idx = keep.index(current) if current in keep else (0 if keep else None)
+        if self.gmode == "new":
+            self._rebuild_gallery()
+            if idx is not None:
+                self._select(idx)
+        else:
+            st.selected = idx
+        return True
 
     def _refresh_badges(self) -> None:
         """Nur die Vorschaubilder neu zeichnen, deren Haken (✓ im Spiel) sich geändert hat – nicht die ganze
@@ -2772,6 +2808,7 @@ class App(tk.Tk):
     def _update_list_info(self) -> None:
         n = len(self.players)
         if not n:
+            self.list_info.config(text=t("list.none"))
             return
         done = sum(1 for p in self.players.values() if p.image)
         unknown = sum(1 for p in self.players.values() if not p.country)
@@ -2800,6 +2837,40 @@ class App(tk.Tk):
                 p.nation2_raw = p.country2 or ""
             self._refresh_row(iid)
         self._update_list_info()
+
+    def _select_all_players(self) -> None:
+        self.tree.selection_set(self.tree.get_children())
+        self.tree.focus_set()
+
+    def _export_help(self) -> None:
+        """Anleitung FM27 Exporter – eigenes Fenster, damit der Download-Link anklickbar ist."""
+        import webbrowser
+        win = tk.Toplevel(self)
+        win.title(t("btn.export_help"))
+        win.configure(background=self.c["bg"])
+        win.transient(self)
+        win.resizable(False, False)
+        frm = ttk.Frame(win, padding=16)
+        frm.pack(fill="both", expand=True)
+        ttk.Label(frm, text=t("help.export2"), justify="left", wraplength=560).pack(anchor="w")
+        link = ttk.Label(frm, text=EXPORTER_TITLE + "\n" + EXPORTER_URL, foreground=self.c["accent"],
+                         cursor="hand2", font=("Segoe UI", 9, "underline"), justify="left")
+        link.pack(anchor="w", pady=(10, 0))
+        link.bind("<Button-1>", lambda e: webbrowser.open(EXPORTER_URL))
+        ttk.Label(frm, text=t("help.export_csv"), justify="left", wraplength=560, style="Hint.TLabel").pack(
+            anchor="w", pady=(10, 0))
+        btns = ttk.Frame(frm)
+        btns.pack(fill="x", pady=(14, 0))
+        ttk.Button(btns, text=t("btn.ok"), command=win.destroy).pack(side="right")
+        ttk.Button(btns, text=t("btn.open_download"), style="Accent.TButton",
+                   command=lambda: webbrowser.open(EXPORTER_URL)).pack(side="right", padx=6)
+        theme.dark_title_bar(win, self.cfg.theme == "dark")
+        win.update_idletasks()  # mittig über dem Programmfenster
+        x = self.winfo_rootx() + (self.winfo_width() - win.winfo_reqwidth()) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - win.winfo_reqheight()) // 3
+        win.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        win.bind("<Escape>", lambda e: win.destroy())
+        win.grab_set()
 
     def _remove_players(self) -> None:
         for iid in self.tree.selection():
@@ -2865,6 +2936,7 @@ class App(tk.Tk):
             return
 
         jobs, base = [], self.cfg.face
+        gender = self.cfg.list_gender if self.cfg.list_gender in GENDERS else "Männlich"
         for iid in iids:
             p = self.players[iid]
             opts = copy.deepcopy(base)
@@ -2872,14 +2944,16 @@ class App(tk.Tk):
             opts.second_country = p.country2 if p.country2 and p.country2 != opts.country else NO_SECOND
             opts.parent_mode = self.cfg.list_parent_mode
             opts.ethnicity = AUTO  # Herkunft kommt aus der Liste
+            opts.gender = gender
             if p.personality:
                 opts.personality = p.personality
             jobs.append(Job(options=opts, age=p.age, filename=self._player_filename(p), tag=iid))
             self.tree.set(iid, "status", t("list.waiting"))
 
         out = Path(self.cfg.output_dir)
-        self._run(self._make_generator(out_dir=out), jobs, "list")
-        self.status.config(text=t("status.list_gen", n=len(jobs)))
+        # gleicher Spieler = gleicher Dateiname: altes Bild ersetzen statt 'Name_2.png' anzulegen
+        self._run(self._make_generator(out_dir=out, overwrite=True), jobs, "list")
+        self.status.config(text=t("status.list_gen", n=len(jobs)) + f" ({opt('gender', gender)})")
 
     def _open_player_image(self, event) -> None:
         iid = self.tree.identify_row(event.y)

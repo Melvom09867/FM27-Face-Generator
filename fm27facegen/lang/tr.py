@@ -299,6 +299,9 @@ STRINGS = {
     'msg.reroll_fd': 'Oyundaki {name} için yeni yüz oluşturulsun mu?\n\nYeni görsel aynı adla mevcut görselin yerine geçer. Eski görsel önce şuraya yedeklenir:\n{folder}\n(Geri alınabilir.)',
     'msg.fd_protected': "Bu görsel FaceDrop'a ait. Oyunda bir şey bozulmasın diye burada yeniden adlandırılmaz veya silinmez.\n\n'Yeniden üret' ve yaşlanma seti çalışır – oyunda yalnızca yedek alınarak değiştirilir.",
     'sel.fd_safe': 'Oyunda (FaceDrop) – yalnızca yedekle değiştirilir',
+    'help.export2': 'Oyuncularınızı Football Manager\'dan dışa aktarma:\n\n1. FM27 Exporter\'ı indirin – bağlantı aşağıda.\n2. FM\'i kapatın. Steam\'de Football Manager 27 için: Yönet → Özellikler → Yüklü Dosyalar → Göz At. "BepInEx" klasörünü ve içindeki "plugins" klasörünü açın. İndirmede aynı klasörde "FM27Exporter" var – bu klasörü oraya kopyalayın. Ardından FM\'in ilk açılışı birkaç dakika sürer.\n3. Oyunda bir oyuncu listesi açın (ör. kadro, altyapı takımı veya arama). Görünmesi gerekenler: Ad · Uyr (uyruk) · Yaş. İsteğe bağlı: 2. uyruk, kişilik ve UID (benzersiz kimlik).\n4. Görseli olmayan tüm oyuncuları seçin, fareyi listenin üzerine getirin ve F8\'e basın. (En fazla bir oyuncu seçiliyse tüm liste aktarılır.)\n5. Araç üç dosya (.html, .rtf, .csv) kaydeder:\n   Belgeler\\Sports Interactive\\Football Manager 27\\exports\n6. Burada "Listeyi yükle…" düğmesine tıklayın ve üç dosyadan yalnızca BİRİNİ seçin – yoksa oyuncular birden çok kez görünür.\n7. Aşağıda cinsiyeti seçin (FM bunu dışa aktarmaz) ve oluşturun.',
+    'help.export_csv': "Kendi CSV dosyanız da olur (ör. Excel'den) – başlık satırı: Ad;Ülke;Yaş (isteğe bağlı: 2. uyruk;Kişilik;UID).",
+    'btn.open_download': 'İndirme sayfasını aç',
 }
 
 OPTIONS = {

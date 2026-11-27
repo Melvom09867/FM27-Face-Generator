@@ -58,6 +58,12 @@ def apply(root: tk.Tk, mode: str = "light") -> dict:
                      padding=pad, **({"font": font} if font else {}))
         st.map(name, background=[("disabled", c["button"]), ("active", c["accent_hover"])],
                foreground=[("disabled", c["sub"])])
+    # normaler Knopf mit grünem Rahmen (fällt auf, ohne so laut zu sein wie ein grüner Knopf)
+    st.configure("Outline.TButton", background=c["button"], foreground=c["fg"], bordercolor=c["accent"],
+                 lightcolor=c["accent"], darkcolor=c["accent"], borderwidth=2, padding=(8, 3))
+    st.map("Outline.TButton", background=[("disabled", c["bg"]), ("active", c["button_hover"])],
+           foreground=[("disabled", c["sub"])], bordercolor=[("!disabled", c["accent"])],
+           lightcolor=[("!disabled", c["accent"])], darkcolor=[("!disabled", c["accent"])])
     for name in ("TEntry", "TCombobox", "TSpinbox"):
         st.configure(name, fieldbackground=c["field"], foreground=c["fg"], background=c["button"],
                      bordercolor=c["border"], arrowcolor=c["fg"], insertcolor=c["fg"])

@@ -143,6 +143,7 @@ class AppSettings:
     overwrite: bool = False
     list_name_mode: str = "Name"
     list_parent_mode: str = "Zufällig"
+    list_gender: str = "Männlich"   # Spielerliste: FM exportiert kein Geschlecht -> hier wählen
     aging_ages: str = "16, 20, 25, 30, 34"
     club_presets: dict = field(default_factory=dict)
     forge_dir: str = ""            # Ordner der Forge-Installation (enthält run.bat)
@@ -185,7 +186,7 @@ def load(path: Path | None = None) -> AppSettings:
         process=_fill(ProcessOptions, raw.get("process")),
     )
     for k in ("output_dir", "pattern", "count", "delay", "subfolder_per_country", "overwrite",
-              "list_name_mode", "list_parent_mode", "aging_ages", "language", "ask_language",
+              "list_name_mode", "list_parent_mode", "list_gender", "aging_ages", "language", "ask_language",
               "club_presets", "forge_dir", "forge_autostart", "check_updates", "update_prereleases", "skip_version",
               "facedrop_dir", "facedrop_cleanup", "theme", "tab_order"):
         if k in raw:

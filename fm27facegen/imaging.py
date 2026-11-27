@@ -70,10 +70,33 @@ def remove_background(img: Image.Image, face: tuple[int, int, int, int] | None) 
     mask = person_mask(img)
     if mask is not None:
         alpha = _clean_alpha(img, np.asarray(mask).astype(np.float32) / 255.0, face)
-        out = img.convert("RGBA")
+        out = Image.fromarray(defringe(np.asarray(img.convert("RGB")), alpha), "RGB").convert("RGBA")
         out.putalpha(Image.fromarray((alpha * 255).astype(np.uint8)))
         return out
     return _remove_background_simple(img, face)
+
+
+def defringe(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Entfernt den grauen Saum: halbtransparente Randpixel (Haarspitzen, Schultern) tragen noch die Farbe des
+    alten Hintergrunds. Sie bekommen die Farbe der benachbarten Person (Haar/Haut). Auch unsichtbare Pixel werden
+    so eingefärbt, damit beim Verkleinern kein Grau von außen in die Kante läuft."""
+    if cv2 is None:
+        return rgb
+    solid = (alpha > 0.92).astype(np.float32)
+    if solid.sum() < 100:
+        return rgb
+    src = rgb.astype(np.float32)
+    fill = np.zeros_like(src)
+    have = np.zeros(alpha.shape, np.float32)
+    for k in (3, 7, 15, 31, 63, 127):  # von nah nach fern: nächstgelegene Personenfarbe
+        w = cv2.GaussianBlur(solid, (k, k), 0)
+        c = cv2.GaussianBlur(src * solid[..., None], (k, k), 0)
+        new = (w > 1e-3) & (have == 0)
+        fill[new] = c[new] / w[new, None]
+        have[new] = 1
+    fill[have == 0] = src[have == 0]
+    out = np.where((alpha > 0.92)[..., None], src, fill)
+    return np.clip(out, 0, 255).astype(np.uint8)
 
 
 def _bg_distance(rgb: np.ndarray, bg_sure: np.ndarray | None = None) -> np.ndarray:
@@ -116,7 +139,9 @@ def _clean_alpha(img: Image.Image, alpha: np.ndarray, face) -> np.ndarray:
         small = [i + 1 for i, a in enumerate(areas) if a < 0.02 * areas.max()]
         if small:
             alpha[np.isin(labels, small)] = 0.0
-    return cv2.GaussianBlur(alpha, (3, 3), 0)
+    alpha = cv2.GaussianBlur(alpha, (3, 3), 0)
+    # Kante minimal enger: kaum sichtbare Reste am Rand (der helle Schimmer) verschwinden ganz
+    return np.clip((alpha - 0.06) / 0.9, 0.0, 1.0)
 
 
 def _remove_background_simple(img: Image.Image, face: tuple[int, int, int, int] | None) -> Image.Image:
@@ -219,8 +244,13 @@ def process(img: Image.Image, opts: ProcessOptions) -> Image.Image:
     out = crop_to_face(img, face, opts)
     out = out.resize((opts.size, opts.size), Image.Resampling.LANCZOS)
     if opts.sharpen:
-        out = out.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
-        if out.mode == "RGB":
+        if out.mode == "RGBA":
+            # nur die Farben schärfen – geschärfte Transparenz erzeugt einen dunklen/grauen Rand
+            a = out.getchannel("A")
+            out = out.convert("RGB").filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
+            out.putalpha(a)
+        else:
+            out = out.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
             out = ImageEnhance.Contrast(out).enhance(1.03)
     return out
 

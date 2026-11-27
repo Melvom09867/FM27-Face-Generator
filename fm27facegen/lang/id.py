@@ -299,6 +299,9 @@ STRINGS = {
     'msg.reroll_fd': 'Buat wajah baru untuk {name} di game?\n\nGambar baru menggantikan yang sekarang dengan nama yang sama. Gambar lama dicadangkan dulu ke:\n{folder}\n(Bisa dibatalkan.)',
     'msg.fd_protected': "Gambar ini milik FaceDrop. Agar game tidak rusak, gambar ini tidak diganti nama atau dihapus di sini.\n\n'Buat ulang' dan set penuaan tetap bisa – di game hanya diganti dengan cadangan.",
     'sel.fd_safe': 'Di game (FaceDrop) – diganti hanya dengan cadangan',
+    'help.export2': 'Cara mengekspor pemain dari Football Manager:\n\n1. Unduh FM27 Exporter – tautan di bawah.\n2. Tutup FM. Di Steam, pada Football Manager 27: Kelola → Properti → Berkas Terinstal → Jelajahi. Buka folder "BepInEx" lalu "plugins". Di unduhan, di folder yang sama, ada "FM27Exporter" – salin folder itu ke sana. Setelah itu, start pertama FM butuh beberapa menit.\n3. Di game, buka daftar pemain (mis. skuad, tim muda, atau pencarian). Kolom yang perlu terlihat: Nama · Neg (kewarganegaraan) · Usia. Opsional: kewarganegaraan ke-2, kepribadian, dan UID (ID unik).\n4. Tandai semua pemain tanpa gambar, arahkan mouse ke daftar dan tekan F8. (Jika paling banyak satu pemain ditandai, seluruh daftar diekspor.)\n5. Exporter menyimpan tiga berkas (.html, .rtf, .csv) di:\n   Dokumen\\Sports Interactive\\Football Manager 27\\exports\n6. Di sini klik "Muat daftar…" dan pilih hanya SATU dari tiga berkas – jika tidak, pemain muncul berkali-kali.\n7. Pilih jenis kelamin di bawah (FM tidak mengekspornya) lalu buat.',
+    'help.export_csv': 'Berkas CSV sendiri (mis. dari Excel) juga bisa – baris judul Nama;Negara;Usia (opsional: kewarganegaraan ke-2;Kepribadian;UID).',
+    'btn.open_download': 'Buka halaman unduhan',
 }
 
 OPTIONS = {

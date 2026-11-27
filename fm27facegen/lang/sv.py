@@ -299,6 +299,9 @@ STRINGS = {
     'msg.reroll_fd': 'Skapa ett nytt ansikte för {name} i spelet?\n\nDen nya bilden ersätter den nuvarande med samma namn. Den gamla bilden säkerhetskopieras först till:\n{folder}\n(Kan ångras.)',
     'msg.fd_protected': "Den här bilden tillhör FaceDrop. För att inte förstöra något i spelet byts den inte namn på och raderas inte här.\n\n'Gör om' och åldringssetet fungerar – i spelet ersätts bara med säkerhetskopia.",
     'sel.fd_safe': 'I spelet (FaceDrop) – ersätts bara med säkerhetskopia',
+    'help.export2': 'Så exporterar du dina spelare från Football Manager:\n\n1. Ladda ner FM27 Exporter – länk nedan.\n2. Stäng FM. I Steam för Football Manager 27: Hantera → Egenskaper → Installerade filer → Bläddra. Öppna mappen "BepInEx" och i den "plugins". I nedladdningen finns "FM27Exporter" i samma mapp – kopiera den mappen dit. Första starten av FM tar därefter några minuter.\n3. Öppna en spelarlista i spelet (t.ex. trupp, ungdomslag eller sökning). Dessa kolumner ska synas: Namn · Nat (nationalitet) · Ålder. Valfritt: 2:a nationalitet, personlighet och UID (unikt ID).\n4. Markera alla spelare utan bild, håll musen över listan och tryck F8. (Är högst en spelare markerad exporteras hela listan.)\n5. Exportören sparar tre filer (.html, .rtf, .csv) i:\n   Dokument\\Sports Interactive\\Football Manager 27\\exports\n6. Klicka här på "Läs in lista…" och välj bara EN av de tre filerna – annars står spelarna flera gånger i listan.\n7. Välj kön längst ned (FM exporterar det inte) och generera.',
+    'help.export_csv': 'En egen CSV-fil (t.ex. från Excel) fungerar också – rubrikrad med Namn;Nation;Ålder (valfritt: 2:a nationalitet;Personlighet;UID).',
+    'btn.open_download': 'Öppna nedladdningssidan',
 }
 
 OPTIONS = {

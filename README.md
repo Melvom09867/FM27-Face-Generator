@@ -195,23 +195,29 @@ The distribution is shown right below. "—" means no second origin.
 
 This gives every youth player a matching face automatically – with their name as the file name.
 
-**Export in Football Manager:**
-1. Open the player list (e.g. youth team or youth intake preview).
-2. Adjust the view so that at least the columns **Name**, **Nat** (nationality) and **Age** are visible.
-   Optional: **2nd nationality**, **Personality** and **UID** (unique ID).
-3. Select all players (**Ctrl + A**), then press **Ctrl + P** ("Print screen").
-4. Choose **Web page** (`.html`) or **Text file** (`.txt`) and save.
+**Export in Football Manager (with FM27 Exporter):**
+1. Download **FM27 Exporter**: [FM27 Print Screen Export | FM Scout](https://www.fmscout.com/a-fm27-exporter.html)
+2. Close FM. In Steam, for Football Manager 27: **Manage → Properties → Installed Files → Browse**. Open the
+   `BepInEx` folder and inside it `plugins`. The download contains `FM27Exporter` in the same folder – copy that
+   folder in there. The first FM start afterwards takes a few minutes.
+3. In the game, open a player list (e.g. squad, youth team or search). **Name**, **Nat** (nationality) and **Age**
+   should be visible. Optional: **2nd nationality**, **Personality** and **UID** (unique ID).
+4. **Select all players without an image**, move the mouse over the list and press **F8**
+   (if at most one player is selected, the whole list is exported).
+5. The exporter saves three files (`.html`, `.rtf`, `.csv`) to
+   `Documents\Sports Interactive\Football Manager 27\exports`.
 
 **In the generator:**
-1. Open the **"Player list (FM import)"** tab on the right → **"Load list…"** → choose the file.
+1. Open the **"Player list (FM import)"** tab on the right → **"Load list…"** → choose **only one** of the three files.
 2. Check: players with an **orange** country weren't recognised – select them and fix the country at the bottom ("set").
 3. Choose the **file name**: `Name` (e.g. `Jonas Müller.png`), `UID` or `Name_UID`.
 4. **"With 2nd nationality"** controls how players with two nationalities look (see table above).
-5. **"Generate for all"** (or "For selection" / "Only without image"). The status shows ✓ and the file name.
+5. Choose the **gender** next to the buttons (FM doesn't export it, default: male), then **"Generate for all"**
+   (or "For selection" / "Only without image"). The status shows ✓ and the file name.
    Double-click a player to open their image.
 
-Age, country, 2nd nationality and personality come from the list; gender, look and background from the
-settings on the left. Players without a personality in the list get the setting from the "Personality" section of the **Player** tab.
+Age, country, 2nd nationality and personality come from the list, gender from the choice next to the buttons;
+look and background from the settings on the left. Players without a personality in the list get the setting from the "Personality" section of the **Player** tab.
 Below the list you can change country, 2nd country and personality for selected players afterwards.
 Your own CSV file (e.g. from Excel) works too – header e.g. `Name;Nation;Age;2nd Nation;Personality;UID`.
 

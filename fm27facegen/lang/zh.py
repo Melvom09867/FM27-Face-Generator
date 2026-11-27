@@ -299,6 +299,9 @@ STRINGS = {
     'msg.reroll_fd': '要为游戏中的 {name} 生成新面孔吗？\n\n新图片将以相同名称替换当前图片。旧图片会先备份到：\n{folder}\n（可以撤销。）',
     'msg.fd_protected': '此图片属于 FaceDrop。为免损坏游戏，此处不会重命名或删除它。\n\n“重新生成”和年龄变化组可以使用 – 游戏中的图片只会在备份后替换。',
     'sel.fd_safe': '游戏中（FaceDrop）– 仅在备份后替换',
+    'help.export2': '如何从 Football Manager 导出球员：\n\n1. 下载 FM27 Exporter – 链接见下方。\n2. 关闭 FM。在 Steam 的 Football Manager 27 中：管理 → 属性 → 已安装文件 → 浏览。打开“BepInEx”文件夹中的“plugins”。下载包的同一文件夹里有“FM27Exporter”– 把该文件夹复制进去。之后 FM 首次启动需要几分钟。\n3. 在游戏中打开球员列表（如阵容、青年队或搜索）。需显示的列：姓名 · 国籍 · 年龄。可选：第二国籍、性格和 UID（唯一 ID）。\n4. 选中所有没有图片的球员，将鼠标移到列表上并按 F8。（若最多只选中一名球员，则导出整个列表。）\n5. 导出工具会把三个文件（.html、.rtf、.csv）保存到：\n   文档\\Sports Interactive\\Football Manager 27\\exports\n6. 在这里点击“加载列表…”，三个文件中只选一个 – 否则球员会重复出现。\n7. 在下方选择性别（FM 不导出性别），然后生成。',
+    'help.export_csv': '也可以用自己的 CSV 文件（如 Excel）– 标题行：Name;Nation;Age（可选：第二国籍;性格;UID）。',
+    'btn.open_download': '打开下载页面',
 }
 
 OPTIONS = {

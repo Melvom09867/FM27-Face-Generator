@@ -3,6 +3,26 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.6
+---------------
+Player list (FM import)
+- New guide "How to export from FM" for FM27 Exporter (F8 in the game) – with a clickable download link.
+- Choose the gender right next to the generate buttons (default: male). FM doesn't export gender – it used to
+  come from the setting on the left, so e.g. all players could get a female face.
+- New button "Select all" (green outline); "Remove selected" now sits above "Generate for all" with some space.
+- Generating a player again replaces their image instead of adding "Name_2.png".
+- The counter ("21 players · 0 with image") is now correct after removing all players.
+
+New
+- Images dragged into the game with FaceDrop disappear from "New" (they are then in the gallery). The file itself
+  is kept.
+- Every image appears only once in the list.
+
+Image quality
+- No more grey fringe around hair and shoulders: edge pixels get the hair/skin colour instead of the old
+  background, the edge is slightly tighter, and sharpening no longer sharpens the transparency.
+
+
 Version 1.8.7.5
 ---------------
 Fixes
