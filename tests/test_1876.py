@@ -33,3 +33,22 @@ def test_list_gender_default_and_saved(tmp_path):
     s.list_gender = "Weiblich"
     settings.save(s, f)
     assert settings.load(f).list_gender == "Weiblich"
+
+
+def test_background_patch_next_to_hair_is_removed(monkeypatch):
+    """Modell hält einen Fleck Hintergrund neben den Haaren für 'Person' -> muss trotzdem weg."""
+    from fm27facegen import imaging, segment
+    h = 512
+    rgb = np.full((h, h, 3), 205, np.uint8)                     # hellgrauer Hintergrund
+    rgb[60:200, 140:380] = (70, 45, 30)                          # Haare
+    rgb[150:400, 160:360] = (200, 150, 120)                      # Gesicht
+    rgb[400:, 100:420] = (245, 245, 245)                         # weißes Trikot
+    mask = np.zeros((h, h), np.uint8)
+    mask[60:, 100:420] = 255
+    mask[60:200, 380:430] = 255                                  # Fleck Hintergrund rechts neben den Haaren
+    monkeypatch.setattr(segment, "person_mask", lambda img: Image.fromarray(mask))
+    out = imaging.remove_background(Image.fromarray(rgb), (160, 150, 200, 250))
+    a = np.asarray(out)[..., 3]
+    assert a[100:180, 390:420].max() < 30        # Fleck entfernt
+    assert a[100:180, 200:300].min() > 240       # Haare bleiben
+    assert a[430:500, 150:400].min() > 240       # weißes Trikot unter dem Kinn bleibt

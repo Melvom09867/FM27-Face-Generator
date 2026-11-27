@@ -131,6 +131,18 @@ def _clean_alpha(img: Image.Image, alpha: np.ndarray, face) -> np.ndarray:
         keep[max(fy, 0): fy + fh, max(fx, 0): fx + fw] = 1.0
     # Nur an unsicheren Stellen eingreifen: sicher erkannte Person (z. B. Glanzlichter im Haar) bleibt
     alpha = np.where(alpha >= 0.9, alpha, alpha * keep)
+    # Neben Haaren und Ohren (oberhalb des Kinns, außerhalb des Gesichts) hält das Modell manchmal ganze Flecken
+    # Hintergrund für "Person" – Pixel fast genau in Hintergrundfarbe dort immer entfernen. Unterhalb des Kinns
+    # nicht (weißes Trikot kann dem Hintergrund ähneln).
+    if face is not None:
+        fx, fy, fw, fh = face
+        h, w = alpha.shape
+        region = np.zeros((h, w), bool)
+        region[: min(h, fy + int(fh * 1.02)), :] = True
+        mx, my = int(fw * 0.04), int(fh * 0.04)
+        region[max(fy + my, 0): fy + fh - my, max(fx + mx, 0): fx + fw - mx] = False
+        strict = np.clip((dist - 10.0) / 8.0, 0.0, 1.0)
+        alpha = np.where(region, alpha * strict, alpha)
     # kleine abgetrennte Inseln entfernen, Kanten leicht glätten
     binary = (alpha > 0.5).astype(np.uint8)
     n, labels, stats, _ = cv2.connectedComponentsWithStats(binary)
