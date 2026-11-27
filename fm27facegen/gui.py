@@ -113,6 +113,10 @@ def pers_short(key: str | None) -> str:
     return label.split(" (")[0] if get_language() == "de" else label
 
 
+def _fmt_size(size: int) -> str:
+    return f"{size / 1_048_576:.1f} MB" if size >= 1_048_576 else f"{max(size // 1024, 1)} KB"
+
+
 def surname_key(name: str) -> tuple[str, str]:
     """Sortierschlüssel Nachname: 'Merijn van Dijk' -> 'dijk', 'Markús Andri Daníelsson Marti' -> 'marti'."""
     import unicodedata
@@ -780,6 +784,10 @@ class App(tk.Tk):
 
         left = ttk.Frame(root)
         left.grid(row=1, column=0, sticky="nsw")
+        # Sicherungskopie löschen – unten links, in allen Tabs sichtbar
+        self.backup_btn = ttk.Button(left, text=t("btn.clear_backup0"), style="Danger.TButton",
+                                     command=self._clear_backup)
+        self.backup_btn.pack(side="bottom", fill="x", pady=(8, 0))
         nb = self.left_nb = ttk.Notebook(left, width=410)
         nb.pack(fill="both", expand=True)
         self._build_tab_player(nb)
@@ -794,6 +802,8 @@ class App(tk.Tk):
         self._build_playerlist(right)
         self._apply_tab_order()
         self._make_tabs_draggable(right)
+        self._update_backup_btn()
+        self.v["output_dir"].trace_add("write", lambda *a: self._update_backup_btn())
 
         self._build_bottom(root)
 
@@ -1891,6 +1901,7 @@ class App(tk.Tk):
 
     def _finish_aging(self) -> None:
         """Nach dem Durchlauf: fertige Bilder in einem Rutsch ins Spiel schieben (alte vorher sichern)."""
+        self.after(300, self._update_backup_btn)  # neue Sicherungskopien
         pairs = getattr(self, "run_replace", [])
         skipped = getattr(self, "run_skipped", [])
         failed_gen = getattr(self, "run_failed", [])
@@ -2617,6 +2628,7 @@ class App(tk.Tk):
         if not messagebox.askyesno(APP_NAME, t("msg.undo_confirm", n=n)):
             return
         restored, failed = ingame.undo_last(out)
+        self._update_backup_btn()
         msg = t("msg.undo_done", n=len(restored))
         if failed:
             msg += t("msg.replace_failed", n=len(failed), names=self._name_list([p.name for p, _e in failed]))
@@ -2667,13 +2679,25 @@ class App(tk.Tk):
     def _delete(self) -> None:
         """Markierte Bilder nach Rückfrage in den Papierkorb verschieben."""
         faces = self._marked_faces()
-        if not faces or self._busy() or self._fd_readonly(faces):
+        if not faces or self._busy():
             return
-        if not messagebox.askyesno(APP_NAME, t("msg.delete_confirm", n=len(faces),
-                                               names="\n".join(f.path.name for f in faces[:8])
-                                               + ("\n…" if len(faces) > 8 else ""))):
+        names = "\n".join(f.path.name for f in faces[:8]) + ("\n…" if len(faces) > 8 else "")
+        in_game = [f for f in faces if facedrop.is_facedrop_path(f.path)]
+        out = self.v["output_dir"].get().strip() or self.cfg.output_dir
+        if in_game:
+            # aus dem Spiel nehmen: vorher in die Sicherungskopie, 'Letzte Ersetzung rückgängig' holt sie zurück
+            ok = messagebox.askyesno(APP_NAME, t("msg.fd_delete_confirm", n=len(faces), names=names,
+                                                 folder=ingame.backup_root(out)))
+        else:
+            ok = messagebox.askyesno(APP_NAME, t("msg.delete_confirm", n=len(faces), names=names))
+        if not ok:
             return
-        failed = set(trash_files([f.path for f in faces]))
+        failed = set(trash_files([f.path for f in faces if f not in in_game]))
+        if in_game:
+            _done, fd_failed = ingame.remove_from_game([f.path for f in in_game], out)
+            failed |= {p for p, _e in fd_failed}
+            self._update_aging_inputs()
+            self._update_backup_btn()
         gone = [f for f in faces if f.path not in failed]
         first = min((self.faces.index(f) for f in gone), default=self.selected or 0)
         gone_paths = {f.path for f in gone}
@@ -2696,6 +2720,35 @@ class App(tk.Tk):
         self.status.config(text=t("status.deleted", n=len(gone)))
         if failed:
             messagebox.showwarning(APP_NAME, t("msg.delete_failed", names="\n".join(p.name for p in failed)))
+
+    # ---- Sicherungskopie
+    def _update_backup_btn(self) -> None:
+        if not hasattr(self, "backup_btn") or not self.backup_btn.winfo_exists():
+            return
+        n, size = ingame.backup_stats(self.v["output_dir"].get().strip() or self.cfg.output_dir)
+        if n or size:
+            self.backup_btn.configure(text=t("btn.clear_backup", n=n, size=_fmt_size(size)), state="normal")
+        else:
+            self.backup_btn.configure(text=t("btn.clear_backup0"), state="disabled")
+
+    def _clear_backup(self) -> None:
+        if self._busy():
+            return
+        out = self.v["output_dir"].get().strip() or self.cfg.output_dir
+        n, size = ingame.backup_stats(out)
+        if not (n or size):
+            self._update_backup_btn()
+            return
+        if not messagebox.askyesno(APP_NAME, t("msg.clear_backup_confirm", n=n, size=_fmt_size(size),
+                                               folder=ingame.backup_root(out)), icon="warning"):
+            return
+        failed = ingame.clear_backup(out)
+        self._update_backup_btn()
+        self._update_aging_inputs()
+        if failed:
+            messagebox.showwarning(APP_NAME, t("msg.delete_failed", names="\n".join(p.name for p in failed[:20])))
+        else:
+            self.status.config(text=t("status.backup_cleared", n=n))
 
     def _rename(self) -> None:
         """Ausgewähltes Bild umbenennen (z. B. in den Spielernamen)."""
@@ -2751,7 +2804,7 @@ class App(tk.Tk):
     def _fd_readonly(self, faces: list[GeneratedFace]) -> bool:
         """Bilder in FaceDrops Ordnern werden nie verändert – True (mit Hinweis), wenn welche dabei sind."""
         if any(facedrop.is_facedrop_path(f.path) for f in faces):
-            messagebox.showinfo(APP_NAME, t("msg.fd_protected"))
+            messagebox.showinfo(APP_NAME, t("msg.fd_rename"))
             return True
         return False
 

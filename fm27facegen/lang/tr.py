@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Oyuncularınızı Football Manager\'dan dışa aktarma:\n\n1. FM27 Exporter\'ı indirin – bağlantı aşağıda.\n2. FM\'i kapatın. Steam\'de Football Manager 27 için: Yönet → Özellikler → Yüklü Dosyalar → Göz At. "BepInEx" klasörünü ve içindeki "plugins" klasörünü açın. İndirmede aynı klasörde "FM27Exporter" var – bu klasörü oraya kopyalayın. Ardından FM\'in ilk açılışı birkaç dakika sürer.\n3. Oyunda bir oyuncu listesi açın (ör. kadro, altyapı takımı veya arama). Görünmesi gerekenler: Ad · Uyr (uyruk) · Yaş. İsteğe bağlı: 2. uyruk, kişilik ve UID (benzersiz kimlik).\n4. Görseli olmayan tüm oyuncuları seçin, fareyi listenin üzerine getirin ve F8\'e basın. (En fazla bir oyuncu seçiliyse tüm liste aktarılır.)\n5. Araç üç dosya (.html, .rtf, .csv) kaydeder:\n   Belgeler\\Sports Interactive\\Football Manager 27\\exports\n6. Burada "Listeyi yükle…" düğmesine tıklayın ve üç dosyadan yalnızca BİRİNİ seçin – yoksa oyuncular birden çok kez görünür.\n7. Aşağıda cinsiyeti seçin (FM bunu dışa aktarmaz) ve oluşturun.',
     'help.export_csv': "Kendi CSV dosyanız da olur (ör. Excel'den) – başlık satırı: Ad;Ülke;Yaş (isteğe bağlı: 2. uyruk;Kişilik;UID).",
     'btn.open_download': 'İndirme sayfasını aç',
+    'btn.clear_backup': 'Yedeği sil ({n} görsel · {size})',
+    'btn.clear_backup0': 'Yedeği sil',
+    'msg.clear_backup_confirm': "Yedeğin tamamı silinsin mi?\n\n{n} görsel · {size}\n{folder}\n\nHepsi Windows Geri Dönüşüm Kutusu'na taşınır. Sonrasında son değiştirme geri alınamaz.",
+    'status.backup_cleared': "Yedek silindi ({n} görsel Geri Dönüşüm Kutusu'nda).",
+    'msg.fd_delete_confirm': '{n} görsel silinsin mi?\n\n{names}\n\nOyundaki görseller (FaceDrop) önce şuraya yedeklenir:\n{folder}\n"Son değiştirmeyi geri al" onları geri getirir. Diğer görseller Geri Dönüşüm Kutusu\'na gider.',
+    'msg.fd_rename': 'Bu görsel FaceDrop\'a ait. Burada yeniden adlandırılamaz – yoksa FaceDrop onu bulamaz.\n\nSilme, "Yeniden üret" ve yaşlanma seti çalışır – her zaman yedekle.',
 }
 
 OPTIONS = {

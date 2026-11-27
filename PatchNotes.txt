@@ -3,6 +3,17 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.7
+---------------
+- Fixed grey patches next to hair and ears: the cut-out model sometimes treated whole pieces of the grey
+  background as "person". Background-coloured pixels above the chin are now always removed (applies to newly
+  created images, including Season +1 and "Re-roll").
+- Images in the game (FaceDrop) can be deleted: after a confirmation the image goes to the backup, "Undo last
+  replacement" brings it back. Renaming stays blocked.
+- New red button "Delete backup" at the bottom left (with count and size): empties the backup folder into the
+  Windows Recycle Bin.
+
+
 Version 1.8.7.6
 ---------------
 Player list (FM import)

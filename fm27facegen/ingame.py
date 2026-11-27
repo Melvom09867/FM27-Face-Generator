@@ -65,6 +65,55 @@ def apply_replacements(pairs: list[tuple[Path, Path]], output_dir: str | Path) -
     return done, failed
 
 
+def remove_from_game(targets: list[Path], output_dir: str | Path) -> tuple[list[Path], list[tuple[Path, str]]]:
+    """FaceDrop-Bilder aus dem Spiel nehmen: erst in die Sicherungskopie, dann löschen.
+    'Letzte Ersetzung rückgängig' legt sie wieder zurück."""
+    stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    bdir = backup_root(output_dir) / stamp
+    done: list[Path] = []
+    failed: list[tuple[Path, str]] = []
+    items = []
+    for target in map(Path, targets):
+        try:
+            backup = bdir / target.parent.name / target.name
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(target, backup)
+            target.unlink()
+            items.append({"target": str(target), "backup": str(backup)})
+            done.append(target)
+        except OSError as exc:
+            failed.append((target, str(exc)))
+    if items:
+        (backup_root(output_dir) / MANIFEST).write_text(
+            json.dumps({"time": stamp, "items": items}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return done, failed
+
+
+def backup_stats(output_dir: str | Path) -> tuple[int, int]:
+    """(Anzahl Bilder, Größe in Bytes) der Sicherungskopie."""
+    n = size = 0
+    root = backup_root(output_dir)
+    if not root.is_dir():
+        return 0, 0
+    for f in root.rglob("*"):
+        try:
+            if f.is_file():
+                size += f.stat().st_size
+                n += f.suffix.lower() == ".png"
+        except OSError:
+            pass
+    return n, size
+
+
+def clear_backup(output_dir: str | Path) -> list[Path]:
+    """Inhalt der Sicherungskopie in den Papierkorb (der Ordner selbst bleibt). Rückgabe: was nicht ging."""
+    from .generator import trash_files
+    root = backup_root(output_dir)
+    if not root.is_dir():
+        return []
+    return trash_files(list(root.iterdir()))
+
+
 def _manifest(output_dir: str | Path) -> dict | None:
     try:
         return json.loads((backup_root(output_dir) / MANIFEST).read_text(encoding="utf-8"))

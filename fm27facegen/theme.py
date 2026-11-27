@@ -58,6 +58,12 @@ def apply(root: tk.Tk, mode: str = "light") -> dict:
                      padding=pad, **({"font": font} if font else {}))
         st.map(name, background=[("disabled", c["button"]), ("active", c["accent_hover"])],
                foreground=[("disabled", c["sub"])])
+    # roter Knopf (Sicherungskopie löschen) – gleiche Größe wie "Bilder generieren"
+    st.configure("Danger.TButton", background="#c62828", foreground="#ffffff", bordercolor="#c62828",
+                 lightcolor="#c62828", darkcolor="#c62828", padding=8, font=("Segoe UI", 10, "bold"))
+    st.map("Danger.TButton", background=[("disabled", c["button"]), ("active", "#a51f1f")],
+           foreground=[("disabled", c["sub"])], bordercolor=[("disabled", c["border"])],
+           lightcolor=[("disabled", c["button"])], darkcolor=[("disabled", c["button"])])
     # normaler Knopf mit grünem Rahmen (fällt auf, ohne so laut zu sein wie ein grüner Knopf)
     st.configure("Outline.TButton", background=c["button"], foreground=c["fg"], bordercolor=c["accent"],
                  lightcolor=c["accent"], darkcolor=c["accent"], borderwidth=2, padding=(8, 3))

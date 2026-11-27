@@ -3,6 +3,17 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.7
+---------------
+- Graue Flecken neben Haaren und Ohren behoben: Das Freistellmodell hielt manchmal ganze Stücke des grauen
+  Hintergrunds für "Person". Pixel in Hintergrundfarbe oberhalb des Kinns werden jetzt immer entfernt
+  (gilt für neu erzeugte Bilder, auch bei Saison +1 und "Neu würfeln").
+- Bilder im Spiel (FaceDrop) lassen sich löschen: vorher Rückfrage, das Bild kommt in die Sicherungskopie,
+  "Letzte Ersetzung rückgängig" holt es zurück. Umbenennen bleibt gesperrt.
+- Neuer roter Knopf "Sicherungskopie löschen" unten links (mit Anzahl und Größe): leert den Ordner
+  Sicherungskopie in den Windows-Papierkorb.
+
+
 Version 1.8.7.6
 ---------------
 Spielerliste (FM-Import)

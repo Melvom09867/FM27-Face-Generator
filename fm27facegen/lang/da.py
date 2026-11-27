@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Sådan eksporterer du dine spillere fra Football Manager:\n\n1. Hent FM27 Exporter – link nedenfor.\n2. Luk FM. I Steam ved Football Manager 27: Administrer → Egenskaber → Installerede filer → Gennemse. Åbn mappen "BepInEx" og derinde "plugins". I downloadet ligger "FM27Exporter" i samme mappe – kopiér den mappe derind. Første start af FM tager derefter et par minutter.\n3. Åbn en spillerliste i spillet (f.eks. trup, ungdomshold eller søgning). Disse kolonner skal være synlige: Navn · Nat (nationalitet) · Alder. Valgfrit: 2. nationalitet, personlighed og UID (unikt ID).\n4. Markér alle spillere uden billede, hold musen over listen og tryk F8. (Er højst én spiller markeret, eksporteres hele listen.)\n5. Exporteren gemmer tre filer (.html, .rtf, .csv) i:\n   Dokumenter\\Sports Interactive\\Football Manager 27\\exports\n6. Klik her på "Indlæs liste…" og vælg kun ÉN af de tre filer – ellers står spillerne flere gange på listen.\n7. Vælg køn nederst (FM eksporterer det ikke), og generér.',
     'help.export_csv': 'En egen CSV-fil (f.eks. fra Excel) virker også – overskriftslinje med Navn;Nation;Alder (valgfrit: 2. nationalitet;Personlighed;UID).',
     'btn.open_download': 'Åbn downloadside',
+    'btn.clear_backup': 'Slet sikkerhedskopi ({n} billeder · {size})',
+    'btn.clear_backup0': 'Slet sikkerhedskopi',
+    'msg.clear_backup_confirm': "Slette hele sikkerhedskopien?\n\n{n} billeder · {size}\n{folder}\n\nAlt havner i Windows' papirkurv. Bagefter kan sidste udskiftning ikke længere fortrydes.",
+    'status.backup_cleared': 'Sikkerhedskopi slettet ({n} billeder i papirkurven).',
+    'msg.fd_delete_confirm': 'Slette {n} billede(r)?\n\n{names}\n\nBilleder i spillet (FaceDrop) gemmes først i:\n{folder}\n"Fortryd sidste udskiftning" henter dem tilbage. Andre billeder havner i papirkurven.',
+    'msg.fd_rename': 'Dette billede tilhører FaceDrop. Det kan ikke omdøbes her – ellers finder FaceDrop det ikke længere.\n\nSlet, "Lav om" og aldringssættet virker – altid med sikkerhedskopi.',
 }
 
 OPTIONS = {

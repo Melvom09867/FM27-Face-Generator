@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Cara mengekspor pemain dari Football Manager:\n\n1. Unduh FM27 Exporter – tautan di bawah.\n2. Tutup FM. Di Steam, pada Football Manager 27: Kelola → Properti → Berkas Terinstal → Jelajahi. Buka folder "BepInEx" lalu "plugins". Di unduhan, di folder yang sama, ada "FM27Exporter" – salin folder itu ke sana. Setelah itu, start pertama FM butuh beberapa menit.\n3. Di game, buka daftar pemain (mis. skuad, tim muda, atau pencarian). Kolom yang perlu terlihat: Nama · Neg (kewarganegaraan) · Usia. Opsional: kewarganegaraan ke-2, kepribadian, dan UID (ID unik).\n4. Tandai semua pemain tanpa gambar, arahkan mouse ke daftar dan tekan F8. (Jika paling banyak satu pemain ditandai, seluruh daftar diekspor.)\n5. Exporter menyimpan tiga berkas (.html, .rtf, .csv) di:\n   Dokumen\\Sports Interactive\\Football Manager 27\\exports\n6. Di sini klik "Muat daftar…" dan pilih hanya SATU dari tiga berkas – jika tidak, pemain muncul berkali-kali.\n7. Pilih jenis kelamin di bawah (FM tidak mengekspornya) lalu buat.',
     'help.export_csv': 'Berkas CSV sendiri (mis. dari Excel) juga bisa – baris judul Nama;Negara;Usia (opsional: kewarganegaraan ke-2;Kepribadian;UID).',
     'btn.open_download': 'Buka halaman unduhan',
+    'btn.clear_backup': 'Hapus cadangan ({n} gambar · {size})',
+    'btn.clear_backup0': 'Hapus cadangan',
+    'msg.clear_backup_confirm': 'Hapus seluruh cadangan?\n\n{n} gambar · {size}\n{folder}\n\nSemua dipindah ke Recycle Bin Windows. Setelah itu penggantian terakhir tidak bisa dibatalkan lagi.',
+    'status.backup_cleared': 'Cadangan dihapus ({n} gambar di Recycle Bin).',
+    'msg.fd_delete_confirm': 'Hapus {n} gambar?\n\n{names}\n\nGambar di game (FaceDrop) dicadangkan dulu ke:\n{folder}\n"Batalkan penggantian terakhir" mengembalikannya. Gambar lain masuk ke Recycle Bin.',
+    'msg.fd_rename': 'Gambar ini milik FaceDrop. Tidak bisa diganti nama di sini – jika tidak, FaceDrop tak menemukannya lagi.\n\nHapus, "Buat ulang", dan set penuaan tetap bisa – selalu dengan cadangan.',
 }
 
 OPTIONS = {

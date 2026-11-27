@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Så exporterar du dina spelare från Football Manager:\n\n1. Ladda ner FM27 Exporter – länk nedan.\n2. Stäng FM. I Steam för Football Manager 27: Hantera → Egenskaper → Installerade filer → Bläddra. Öppna mappen "BepInEx" och i den "plugins". I nedladdningen finns "FM27Exporter" i samma mapp – kopiera den mappen dit. Första starten av FM tar därefter några minuter.\n3. Öppna en spelarlista i spelet (t.ex. trupp, ungdomslag eller sökning). Dessa kolumner ska synas: Namn · Nat (nationalitet) · Ålder. Valfritt: 2:a nationalitet, personlighet och UID (unikt ID).\n4. Markera alla spelare utan bild, håll musen över listan och tryck F8. (Är högst en spelare markerad exporteras hela listan.)\n5. Exportören sparar tre filer (.html, .rtf, .csv) i:\n   Dokument\\Sports Interactive\\Football Manager 27\\exports\n6. Klicka här på "Läs in lista…" och välj bara EN av de tre filerna – annars står spelarna flera gånger i listan.\n7. Välj kön längst ned (FM exporterar det inte) och generera.',
     'help.export_csv': 'En egen CSV-fil (t.ex. från Excel) fungerar också – rubrikrad med Namn;Nation;Ålder (valfritt: 2:a nationalitet;Personlighet;UID).',
     'btn.open_download': 'Öppna nedladdningssidan',
+    'btn.clear_backup': 'Radera säkerhetskopia ({n} bilder · {size})',
+    'btn.clear_backup0': 'Radera säkerhetskopia',
+    'msg.clear_backup_confirm': 'Radera hela säkerhetskopian?\n\n{n} bilder · {size}\n{folder}\n\nAllt hamnar i Windows papperskorg. Efteråt går det inte längre att ångra senaste ersättningen.',
+    'status.backup_cleared': 'Säkerhetskopian raderad ({n} bilder i papperskorgen).',
+    'msg.fd_delete_confirm': 'Radera {n} bild(er)?\n\n{names}\n\nBilder i spelet (FaceDrop) säkerhetskopieras först till:\n{folder}\n"Ångra senaste ersättning" hämtar tillbaka dem. Andra bilder hamnar i papperskorgen.',
+    'msg.fd_rename': 'Den här bilden tillhör FaceDrop. Den kan inte byta namn här – annars hittar FaceDrop den inte längre.\n\nRadera, "Gör om" och åldringssetet fungerar – alltid med säkerhetskopia.',
 }
 
 OPTIONS = {

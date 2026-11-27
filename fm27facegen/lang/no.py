@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Slik eksporterer du spillerne dine fra Football Manager:\n\n1. Last ned FM27 Exporter – lenke nedenfor.\n2. Lukk FM. I Steam for Football Manager 27: Administrer → Egenskaper → Installerte filer → Bla gjennom. Åpne mappen "BepInEx" og inni den "plugins". I nedlastingen ligger "FM27Exporter" i samme mappe – kopier den mappen dit. Første oppstart av FM tar deretter noen minutter.\n3. Åpne en spillerliste i spillet (f.eks. tropp, juniorlag eller søk). Disse kolonnene må vises: Navn · Nas (nasjonalitet) · Alder. Valgfritt: 2. nasjonalitet, personlighet og UID (unik ID).\n4. Merk alle spillere uten bilde, hold musen over listen og trykk F8. (Er høyst én spiller merket, eksporteres hele listen.)\n5. Eksportøren lagrer tre filer (.html, .rtf, .csv) i:\n   Dokumenter\\Sports Interactive\\Football Manager 27\\exports\n6. Klikk her på "Last inn liste…" og velg bare ÉN av de tre filene – ellers står spillerne flere ganger i listen.\n7. Velg kjønn nederst (FM eksporterer det ikke) og generer.',
     'help.export_csv': 'En egen CSV-fil (f.eks. fra Excel) fungerer også – overskriftslinje med Navn;Nasjon;Alder (valgfritt: 2. nasjonalitet;Personlighet;UID).',
     'btn.open_download': 'Åpne nedlastingsside',
+    'btn.clear_backup': 'Slett sikkerhetskopi ({n} bilder · {size})',
+    'btn.clear_backup0': 'Slett sikkerhetskopi',
+    'msg.clear_backup_confirm': 'Slette hele sikkerhetskopien?\n\n{n} bilder · {size}\n{folder}\n\nAlt havner i papirkurven i Windows. Etterpå kan siste utskifting ikke lenger angres.',
+    'status.backup_cleared': 'Sikkerhetskopi slettet ({n} bilder i papirkurven).',
+    'msg.fd_delete_confirm': 'Slette {n} bilde(r)?\n\n{names}\n\nBilder i spillet (FaceDrop) sikkerhetskopieres først til:\n{folder}\n"Angre siste utskifting" henter dem tilbake. Andre bilder havner i papirkurven.',
+    'msg.fd_rename': 'Dette bildet tilhører FaceDrop. Det kan ikke gis nytt navn her – ellers finner ikke FaceDrop det lenger.\n\nSlett, "Lag på nytt" og aldringssettet fungerer – alltid med sikkerhetskopi.',
 }
 
 OPTIONS = {

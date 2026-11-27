@@ -265,6 +265,7 @@ Sie bestimmt den **Gesichtsausdruck** und fügt passende **Merkmale** hinzu, zum
   ersetzt das Bild im Spiel – FM zeigt es sofort. Werden mehrere Alter erzeugt, kommt das **niedrigste** ins Spiel,
   die übrigen landen im Speicherort.
 - Die alten Bilder werden vorher gesichert: **Speicherort\Sicherungskopie\<Datum Uhrzeit>\<Karriere>\**.
+  Der rote Knopf **„Sicherungskopie löschen“** unten links leert diesen Ordner (in den Windows-Papierkorb).
 - Alle neuen Bilder entstehen zuerst in einer Warteschlange und werden erst **am Ende in einem Rutsch** ins Spiel
   geschoben. Es gibt **nur eine Rückfrage am Anfang** – danach läuft alles durch (ideal über Nacht). Schlägt ein
   Bild fehl, wird es noch einmal versucht und sonst übersprungen; am Ende kommt eine Zusammenfassung.

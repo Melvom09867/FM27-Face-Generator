@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': 'Zo exporteer je je spelers uit Football Manager:\n\n1. Download FM27 Exporter – link hieronder.\n2. Sluit FM. In Steam bij Football Manager 27: Beheren → Eigenschappen → Geïnstalleerde bestanden → Bladeren. Open de map "BepInEx" en daarin "plugins". In de download staat in dezelfde map "FM27Exporter" – kopieer die map daarheen. De eerste start van FM duurt daarna een paar minuten.\n3. Open in het spel een spelerslijst (bijv. selectie, jeugdteam of zoekopdracht). Zichtbaar moeten zijn: Naam · Nat (nationaliteit) · Leeftijd. Optioneel: 2e nationaliteit, persoonlijkheid en UID (unieke ID).\n4. Selecteer alle spelers zonder afbeelding, beweeg de muis over de lijst en druk op F8. (Is hooguit één speler geselecteerd, dan wordt de hele lijst geëxporteerd.)\n5. De exporter slaat drie bestanden (.html, .rtf, .csv) op in:\n   Documenten\\Sports Interactive\\Football Manager 27\\exports\n6. Klik hier op "Lijst laden…" en kies maar ÉÉN van de drie bestanden – anders staan de spelers meerdere keren in de lijst.\n7. Kies onderaan het geslacht (FM exporteert dat niet) en genereer.',
     'help.export_csv': 'Een eigen CSV-bestand (bijv. uit Excel) kan ook – kopregel met Naam;Nationaliteit;Leeftijd (optioneel: 2e nationaliteit;Persoonlijkheid;UID).',
     'btn.open_download': 'Downloadpagina openen',
+    'btn.clear_backup': 'Reservekopie verwijderen ({n} afbeeldingen · {size})',
+    'btn.clear_backup0': 'Reservekopie verwijderen',
+    'msg.clear_backup_confirm': 'De volledige reservekopie verwijderen?\n\n{n} afbeeldingen · {size}\n{folder}\n\nAlles gaat naar de Windows-prullenbak. Daarna kan de laatste vervanging niet meer ongedaan worden gemaakt.',
+    'status.backup_cleared': 'Reservekopie verwijderd ({n} afbeeldingen in de prullenbak).',
+    'msg.fd_delete_confirm': '{n} afbeelding(en) verwijderen?\n\n{names}\n\nAfbeeldingen in het spel (FaceDrop) worden eerst bewaard in:\n{folder}\n"Laatste vervanging ongedaan maken" haalt ze terug. Andere afbeeldingen gaan naar de prullenbak.',
+    'msg.fd_rename': 'Deze afbeelding hoort bij FaceDrop. Hernoemen kan hier niet – anders vindt FaceDrop haar niet meer.\n\nVerwijderen, "Opnieuw" en de verouderingsset werken – altijd met reservekopie.',
 }
 
 OPTIONS = {

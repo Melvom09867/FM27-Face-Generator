@@ -263,6 +263,7 @@ It sets the **facial expression** and adds matching **features**, for example:
   image in the game – FM shows it right away. If several ages are created, the **lowest** goes into the game, the
   others go to the save folder.
 - The old images are backed up first: **save folder\Sicherungskopie\<date time>\<career>\**.
+  The red button **"Delete backup"** at the bottom left empties this folder (into the Windows Recycle Bin).
 - All new images are first collected in a queue and only moved into the game **all at once at the end**. There is
   **only one question at the start** – then everything runs through (ideal overnight). If an image fails it's
   retried once and otherwise skipped; a summary is shown at the end.

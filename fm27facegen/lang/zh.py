@@ -302,6 +302,12 @@ STRINGS = {
     'help.export2': '如何从 Football Manager 导出球员：\n\n1. 下载 FM27 Exporter – 链接见下方。\n2. 关闭 FM。在 Steam 的 Football Manager 27 中：管理 → 属性 → 已安装文件 → 浏览。打开“BepInEx”文件夹中的“plugins”。下载包的同一文件夹里有“FM27Exporter”– 把该文件夹复制进去。之后 FM 首次启动需要几分钟。\n3. 在游戏中打开球员列表（如阵容、青年队或搜索）。需显示的列：姓名 · 国籍 · 年龄。可选：第二国籍、性格和 UID（唯一 ID）。\n4. 选中所有没有图片的球员，将鼠标移到列表上并按 F8。（若最多只选中一名球员，则导出整个列表。）\n5. 导出工具会把三个文件（.html、.rtf、.csv）保存到：\n   文档\\Sports Interactive\\Football Manager 27\\exports\n6. 在这里点击“加载列表…”，三个文件中只选一个 – 否则球员会重复出现。\n7. 在下方选择性别（FM 不导出性别），然后生成。',
     'help.export_csv': '也可以用自己的 CSV 文件（如 Excel）– 标题行：Name;Nation;Age（可选：第二国籍;性格;UID）。',
     'btn.open_download': '打开下载页面',
+    'btn.clear_backup': '删除备份（{n} 张图片 · {size}）',
+    'btn.clear_backup0': '删除备份',
+    'msg.clear_backup_confirm': '要删除全部备份吗？\n\n{n} 张图片 · {size}\n{folder}\n\n全部移到 Windows 回收站。之后将无法再撤销上一次替换。',
+    'status.backup_cleared': '备份已删除（{n} 张图片已移到回收站）。',
+    'msg.fd_delete_confirm': '要删除 {n} 张图片吗？\n\n{names}\n\n游戏中的图片（FaceDrop）会先备份到：\n{folder}\n“撤销上一次替换”可以恢复。其他图片会移到回收站。',
+    'msg.fd_rename': '此图片属于 FaceDrop。此处不能重命名，否则 FaceDrop 将找不到它。\n\n删除、“重新生成”和年龄变化组可以使用 – 始终会先备份。',
 }
 
 OPTIONS = {
