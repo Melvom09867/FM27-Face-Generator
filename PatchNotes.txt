@@ -3,6 +3,32 @@ FM27 Face Generator – Patch notes (English)
 (Deutsch: PatchNotes_DE.txt)
 
 
+Version 1.8.7.8
+---------------
+Personality when ageing
+- The last loaded FM export (player list) is remembered. When ageing and with "Season +1" every player takes his
+  current personality from FM automatically (e.g. after mentoring) – the face stays, expression and style adapt.
+  Matched by the player ID in the FaceDrop file name or by the player name.
+- Below "Ageing set" the personality can also be chosen by hand (default: automatic).
+
+Ageing other images
+- Images not made by the generator are analysed before ageing: age, nationality, 2nd nationality and personality
+  from the FM export, gender and hair from the image (Forge image description), skin tone measured. A window shows
+  everything with its source (FM / image / estimated) – editable.
+- Previously other images were described with the settings on the left (e.g. "21-year-old woman from the
+  Netherlands"). The image itself now becomes the base image; every further season starts from it.
+
+Face extension (AI tab)
+- New: "Keep the face when ageing" with IP-Adapter FaceID for Forge – the person stays much more recognisable,
+  especially with real photos. Download (approx. 1.9 GB) right in the AI tab; restart Forge once afterwards. If
+  the extension fails in Forge, ageing continues without it (with a notice).
+
+Own languages
+- In the language window: "Export language…" (CSV for Excel) and "Import language…". Imported languages appear
+  with "(not from the generator)" and can be removed again. Only texts are taken over; broken texts or wrong
+  placeholders are rejected (English is used there).
+
+
 Version 1.8.7.7
 ---------------
 - Fixed grey patches next to hair and ears: the cut-out model sometimes treated whole pieces of the grey

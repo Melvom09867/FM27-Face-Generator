@@ -21,7 +21,7 @@ from PIL import Image
 from .i18n import t
 from .prompts import FacePrompt
 
-USER_AGENT = "FM27-FaceGenerator/1.8.7.7"
+USER_AGENT = "FM27-FaceGenerator/1.8.7.8"
 
 
 class BackendError(RuntimeError):
@@ -41,7 +41,15 @@ class BackendSettings:
     sd_scheduler: str = "Karras"
     gen_size: int = 768
     sd_fast: bool = False          # Schnell-Modus für Lightning-Modelle (Euler, 1 Rechenschritt je Schritt)
+    faceid: bool = False           # Gesichts-Erweiterung (IP-Adapter FaceID) beim Altern nutzen
+    faceid_weight: float = 0.6
     timeout: int = 180
+
+
+def _b64(img: Image.Image) -> str:
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return base64.b64encode(buf.getvalue()).decode()
 
 
 def _open_image(data: bytes, where: str) -> Image.Image:
@@ -183,12 +191,15 @@ def is_fast_model(model_name: str) -> bool:
 class StableDiffusionWebUIBackend:
     name = "Lokal: Stable Diffusion WebUI (A1111/Forge)"
     supports_img2img = True
+    supports_faceid = True
 
     def __init__(self, settings: BackendSettings, session: requests.Session | None = None):
         self.s = settings
         self.http = session or requests.Session()
         self._model: str | None = None  # aktives Modell in der WebUI (einmal abgefragt)
         self.progress_cb: Callable[[float], None] | None = None  # echter Fortschritt 0..1 (für den Ladebalken)
+        self._faceid: tuple[str, str] | None = None  # (ControlNet-Modell, LoRA-Name) – einmal abgefragt
+        self.faceid_error = ""                        # letzter Fehler der Gesichts-Erweiterung (Hinweis)
 
     def _active_model(self) -> str:
         if self._model is None:
@@ -202,12 +213,60 @@ class StableDiffusionWebUIBackend:
     def generate(self, fp: FacePrompt) -> Image.Image:
         return self._call("txt2img", fp)
 
-    def img2img(self, fp: FacePrompt, init: Image.Image, strength: float = 0.5) -> Image.Image:
-        """Erzeugt das Bild ausgehend von einem vorhandenen Gesicht (für Alterungs-Sets)."""
-        buf = io.BytesIO()
-        init.convert("RGB").resize((self.s.gen_size, self.s.gen_size)).save(buf, "PNG")
-        extra = {"init_images": [base64.b64encode(buf.getvalue()).decode()], "denoising_strength": strength}
+    def img2img(self, fp: FacePrompt, init: Image.Image, strength: float = 0.5,
+                face_ref: Image.Image | None = None) -> Image.Image:
+        """Erzeugt das Bild ausgehend von einem vorhandenen Gesicht (für Alterungs-Sets).
+        face_ref: Ausgangsgesicht für die Gesichts-Erweiterung (IP-Adapter FaceID), falls eingeschaltet."""
+        extra = {"init_images": [_b64(init.convert("RGB").resize((self.s.gen_size, self.s.gen_size)))],
+                 "denoising_strength": strength}
+        model, lora = self._faceid_models() if (self.s.faceid and face_ref is not None) else ("", "")
+        if model:
+            from . import faceid
+            unit = faceid.controlnet_unit(model, _b64(face_ref.convert("RGB")), self.s.faceid_weight)
+            with_face = dict(extra, alwayson_scripts={"ControlNet": {"args": [unit]}})
+            fp_face = fp
+            if lora:
+                fp_face = FacePrompt(prompt=fp.prompt + f", <lora:{lora}:{faceid.LORA_WEIGHT}>",
+                                     negative=fp.negative, seed=fp.seed, meta=fp.meta)
+            try:
+                return self._call("img2img", fp_face, with_face)
+            except BackendError as exc:
+                # Gesichts-Erweiterung klappt nicht (z. B. InsightFace fehlt in Forge) -> ohne weiter
+                self.faceid_error = str(exc)[:300]
+                self._faceid = ("", "")
         return self._call("img2img", fp, extra)
+
+    def _faceid_models(self) -> tuple[str, str]:
+        """FaceID-Modell aus Forges ControlNet-Liste und passende LoRA (leer = nicht installiert)."""
+        if self._faceid is None:
+            base = self.s.sd_url.rstrip("/")
+            model = lora = ""
+            try:
+                self.http.post(base + "/sdapi/v1/refresh-loras", timeout=20)
+                r = self.http.get(base + "/controlnet/model_list?update=true", timeout=10)
+                if r.status_code == 200:
+                    model = next((m for m in r.json().get("model_list", []) if "faceid" in str(m).lower()), "")
+                r = self.http.get(base + "/sdapi/v1/loras", timeout=10)
+                if r.status_code == 200:
+                    lora = next((x.get("name", "") for x in r.json() if "faceid" in str(x.get("name", "")).lower()),
+                                "")
+            except Exception:  # noqa: BLE001
+                pass
+            self._faceid = (model, lora)
+        return self._faceid
+
+    def describe(self, img: Image.Image) -> tuple[str, str]:
+        """Bildbeschreibung durch Forge: (CLIP-Satz, DeepBooru-Stichworte) – beides darf leer sein."""
+        url = self.s.sd_url.rstrip("/") + "/sdapi/v1/interrogate"
+        data = _b64(img.convert("RGB"))
+        out = []
+        for model in ("clip", "deepdanbooru"):
+            try:
+                r = self.http.post(url, json={"image": data, "model": model}, timeout=max(self.s.timeout, 300))
+                out.append(str(r.json().get("caption", "")) if r.status_code == 200 else "")
+            except Exception:  # noqa: BLE001
+                out.append("")
+        return out[0], out[1]
 
     def _call(self, mode: str, fp: FacePrompt, extra: dict | None = None) -> Image.Image:
         url = self.s.sd_url.rstrip("/") + f"/sdapi/v1/{mode}"

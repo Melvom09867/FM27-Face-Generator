@@ -3,6 +3,32 @@ FM27 Face Generator – PatchNotes (Deutsch)
 (English: PatchNotes.txt)
 
 
+Version 1.8.7.8
+---------------
+Persönlichkeit beim Altern
+- Der zuletzt geladene FM-Export (Spielerliste) wird gemerkt. Beim Altern und bei "Saison +1" übernimmt jeder
+  Spieler automatisch seine aktuelle Persönlichkeit aus FM (z. B. nach Mentoring) – das Gesicht bleibt gleich,
+  Ausdruck und Stil passen sich an. Zuordnung über die Spieler-ID im FaceDrop-Namen oder den Spielernamen.
+- Unter "Alterungs-Set" lässt sich die Persönlichkeit auch von Hand wählen (Standard: Automatisch).
+
+Fremde Bilder altern lassen
+- Bilder, die nicht vom Generator stammen, werden vor dem Altern analysiert: Alter, Nationalität,
+  2. Nationalität und Persönlichkeit aus dem FM-Export, Geschlecht und Haare aus dem Bild (Bildbeschreibung
+  von Forge), Hautton gemessen. Ein Fenster zeigt alles mit Quelle (FM / Bild / geschätzt) – änderbar.
+- Bisher wurden fremde Bilder mit den Einstellungen links beschrieben (z. B. "21-jährige Frau aus den
+  Niederlanden"). Das fremde Bild wird jetzt zum Ausgangsbild, jede weitere Saison geht davon aus.
+
+Gesichts-Erweiterung (KI-Tab)
+- Neu: "Gesicht beim Altern erhalten" mit IP-Adapter FaceID für Forge – die Person bleibt beim Altern deutlich
+  besser erkennbar, vor allem bei echten Fotos. Download (ca. 1,9 GB) direkt im KI-Tab; danach Forge einmal
+  neu starten. Klappt die Erweiterung in Forge nicht, wird ohne sie gealtert (mit Hinweis).
+
+Eigene Sprachen
+- Im Sprachfenster: "Sprache exportieren…" (CSV für Excel) und "Sprache importieren…". Importierte Sprachen
+  stehen mit "(nicht vom Generator)" in der Auswahl und lassen sich wieder entfernen. Es werden nur Texte
+  übernommen; kaputte Texte oder falsche Platzhalter werden verworfen (dort steht Englisch).
+
+
 Version 1.8.7.7
 ---------------
 - Graue Flecken neben Haaren und Ohren behoben: Das Freistellmodell hielt manchmal ganze Stücke des grauen

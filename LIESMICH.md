@@ -118,6 +118,12 @@ Verfügbar: Deutsch, English, Español (España), Español (Latinoamérica), Fra
 Auch Länder, Haarfarben, Persönlichkeiten usw. werden übersetzt. Persönlichkeiten zeigen in den
 übrigen Sprachen zusätzlich den englischen FM-Namen, z. B. „Mercenario (Mercenary)“.
 
+**Eigene Sprache:** Im Sprachfenster **„Sprache exportieren…“** speichert alle Texte als CSV (öffnet in Excel).
+Spalte **„Übersetzung“** übersetzen, in Zeile 1 den Namen der Sprache eintragen und über **„Sprache importieren…“**
+laden. Die Sprache steht dann mit **„(nicht vom Generator)“** in der Auswahl und lässt sich wieder entfernen.
+Es werden nur Texte übernommen; kaputte Texte oder falsche Platzhalter wie `{n}` werden verworfen (dort steht
+Englisch). Rechts-nach-links-Schriften (z. B. Arabisch) zeigt die Oberfläche von links nach rechts.
+
 ---
 
 ## Benutzung
@@ -258,6 +264,22 @@ Sie bestimmt den **Gesichtsausdruck** und fügt passende **Merkmale** hinzu, zum
    Dann wird jedes markierte Bild um 4 Jahre älter, egal wie alt es vorher war (die feste Liste wird ausgegraut).
 3. **„Erstellen“** klicken. Im Dateinamen wird das Alter mitgeändert: aus `Deutschland_16J_Ehrgeizig_123.png`
    wird `Deutschland_20J_Ehrgeizig_123.png`. Steht kein Alter im Namen (z. B. umbenannt), wird `_20J` angehängt.
+
+4. **Persönlichkeit:** Darunter steht **„Persönlichkeit: Automatisch (FM-Export)“**. Wurde eine Spielerliste aus
+   FM geladen, übernimmt jeder Spieler beim Altern (und bei „Saison +1“) seine **aktuelle Persönlichkeit aus FM** –
+   z. B. nach einer Mentoring-Gruppe. Das Gesicht bleibt, Ausdruck und Stil passen sich an. Tipp: vor „Saison +1“
+   den Kader frisch exportieren (F8) und laden. Man kann die Persönlichkeit hier auch von Hand wählen.
+
+**Fremde Bilder** (nicht vom Generator, z. B. echte Fotos oder andere Facepacks) lassen sich ebenfalls altern
+(nur mit lokalem Forge). Vorher werden sie analysiert: **Alter, Nationalität, 2. Nationalität und Persönlichkeit**
+kommen aus dem FM-Export (Zuordnung über die Spieler-ID im FaceDrop-Namen), **Geschlecht und Haare** aus der
+Bildbeschreibung von Forge, der **Hautton** wird gemessen. Ein Fenster zeigt alles mit Quelle (FM / Bild /
+geschätzt) – einfach prüfen, bei Bedarf ändern und **„Weiter – altern“**. Danach gilt das Bild wie ein eigenes.
+
+**Gesichts-Erweiterung (optional, empfohlen für fremde Bilder):** Im Tab **KI** den Haken **„Gesicht beim Altern
+erhalten“** setzen und **„Herunterladen (ca. 1,9 GB)“** klicken (der Forge-Ordner muss eingetragen sein). Danach
+Forge einmal neu starten. Forge bekommt dann beim Altern das Ausgangsgesicht als Vorlage (IP-Adapter FaceID) – die
+Person bleibt deutlich besser erkennbar.
 
 ### Im Spiel ersetzen, Saison und Rückgängig (Galerie → FaceDrop)
 

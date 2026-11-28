@@ -20,14 +20,15 @@ from typing import Callable
 from PIL import Image, ImageTk
 
 from . import APP_NAME, __version__
-from . import facedrop, ingame, theme
-from . import selfupdate, winclip
+from . import analyze, faceid, facedrop, fmdata, ingame, theme
+from . import selfupdate, userlang, winclip
 from . import settings as settings_mod
 from .backends import BACKENDS, BackendError, BackendSettings, StableDiffusionWebUIBackend, check_sd_webui
 from .data import COUNTRIES, ETHNICITIES, load_user_overrides
 from .forge import ForgeManager, api_enabled, find_launcher
 from .update import check_latest, should_notify
 from .generator import (GeneratedFace, Generator, Job, RenameError, aging_jobs, face_age, list_folder_images,
+                        use_analysis,
                         load_face, parse_ages, rename_face, safe_filename, search_key, trash_files)
 from .i18n import LANGUAGES, country, ethnicity, get_language, language_label, opt, personality, set_language, t
 from .personality import NONE as NO_PERS, PERSONALITIES, RANDOM as RANDOM_PERS, STRENGTHS, personality_names
@@ -113,6 +114,9 @@ def pers_short(key: str | None) -> str:
     return label.split(" (")[0] if get_language() == "de" else label
 
 
+AUTO_PERS = "__auto__"  # Alterung: Persönlichkeit automatisch aus dem FM-Export (sonst beibehalten)
+
+
 def _fmt_size(size: int) -> str:
     return f"{size / 1_048_576:.1f} MB" if size >= 1_048_576 else f"{max(size // 1024, 1)} KB"
 
@@ -136,6 +140,11 @@ class GalleryState:
 
 
 # ====================================================================== Sprachdialog
+def csv_error():
+    import csv
+    return csv.Error
+
+
 class LanguageDialog(tk.Toplevel):
     """Kleines Fenster zur Sprachauswahl. Die Texte wechseln sofort in die gewählte Sprache."""
 
@@ -160,8 +169,17 @@ class LanguageDialog(tk.Toplevel):
         cb.bind("<<ComboboxSelected>>", lambda e: self._retranslate())
         self.chk = ttk.Checkbutton(frm, variable=self.dont_ask)
         self.chk.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        tools = ttk.Frame(frm)
+        tools.grid(row=3, column=0, columnspan=2, sticky="w", pady=(12, 0))
+        self.exp_btn = ttk.Button(tools, command=self._export)
+        self.exp_btn.pack(side="left")
+        self.imp_btn = ttk.Button(tools, command=self._import)
+        self.imp_btn.pack(side="left", padx=(6, 0))
+        self.del_btn = ttk.Button(tools, command=self._remove)
+        self.del_btn.pack(side="left", padx=(6, 0))
+        self.cb = cb
         self.ok_btn = ttk.Button(frm, command=self._ok)
-        self.ok_btn.grid(row=3, column=1, sticky="e", pady=(14, 0))
+        self.ok_btn.grid(row=4, column=1, sticky="e", pady=(14, 0))
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self.destroy())
         self._retranslate()
@@ -185,6 +203,65 @@ class LanguageDialog(tk.Toplevel):
         self.lang_lbl.config(text=t("lang.label", lang=code))
         self.chk.config(text=t("lang.dont_ask", lang=code))
         self.ok_btn.config(text=t("btn.ok", lang=code))
+        self.exp_btn.config(text=t("lang.export", lang=code))
+        self.imp_btn.config(text=t("lang.import", lang=code))
+        self.del_btn.config(text=t("lang.remove", lang=code))
+        if code in userlang.i18n.USER:
+            self.del_btn.pack(side="left", padx=(6, 0))
+        else:
+            self.del_btn.pack_forget()
+
+    def _reload_list(self, select: str) -> None:
+        self.codes = list(LANGUAGES)
+        self.labels = {c: language_label(c) for c in LANGUAGES}
+        self.cb.configure(values=list(self.labels.values()))
+        self.lang_var.set(self.labels.get(select, self.labels["de"]))
+        self._retranslate()
+
+    def _export(self) -> None:
+        code = self._code()
+        path = filedialog.asksaveasfilename(parent=self, title=t("lang.export", lang=code), defaultextension=".csv",
+                                            initialfile=f"FM27FaceGenerator_{LANGUAGES[code]}.csv",
+                                            filetypes=[("CSV", "*.csv")])
+        if not path:
+            return
+        try:
+            n = userlang.export_csv(path, code)
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self)
+            return
+        messagebox.showinfo(APP_NAME, t("lang.exported", lang=code, n=n, path=path), parent=self)
+
+    def _import(self) -> None:
+        code = self._code()
+        path = filedialog.askopenfilename(parent=self, title=t("lang.import", lang=code),
+                                          filetypes=[("CSV", "*.csv"), ("*", "*.*")])
+        if not path:
+            return
+        try:
+            name, data, ok, bad = userlang.import_csv(path)
+        except (OSError, ValueError, csv_error()) as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self)
+            return
+        if not ok:
+            messagebox.showerror(APP_NAME, t("lang.import_empty", lang=code), parent=self)
+            return
+        if not name:
+            name = simpledialog.askstring(APP_NAME, t("lang.ask_name", lang=code), parent=self) or ""
+            name = name.strip()[:40]
+            if not name:
+                return
+        new = userlang.save_language(name, data)
+        self._reload_list(new)
+        messagebox.showinfo(APP_NAME, t("lang.imported", lang=new, name=name, ok=ok, bad=bad), parent=self)
+
+    def _remove(self) -> None:
+        code = self._code()
+        if code not in userlang.i18n.USER:
+            return
+        if messagebox.askyesno(APP_NAME, t("lang.remove_confirm", lang=code, name=LANGUAGES[code]), parent=self):
+            userlang.remove_language(code)
+            self._reload_list("de")
 
     def _ok(self) -> None:
         self.result = (self._code(), not self.dont_ask.get())
@@ -242,6 +319,137 @@ class UpdateDialog(tk.Toplevel):
 
 
 # ====================================================================== Vorschlagsliste
+class AnalysisDialog:
+    """Zeigt, was bei fremden Bildern erkannt wurde (mit Quelle: FM-Export, Bild, geschätzt) – alles änderbar."""
+
+    def __init__(self, app: "App", results: list):
+        self.ok = False
+        self.results = results
+        self.app = app
+        c = app.c
+        win = self.win = tk.Toplevel(app)
+        win.title(t("ana.title"))
+        win.configure(background=c["bg"])
+        win.transient(app)
+        frm = ttk.Frame(win, padding=12)
+        frm.pack(fill="both", expand=True)
+        ttk.Label(frm, text=t("ana.intro"), wraplength=760, justify="left").pack(anchor="w")
+        cols = ("file", "age", "gender", "country", "country2", "pers", "hair")
+        self.tree = ttk.Treeview(frm, columns=cols, show="headings", height=min(10, max(3, len(results))),
+                                 selectmode="browse")
+        for col, w in zip(cols, (160, 70, 125, 125, 105, 130, 230)):
+            self.tree.heading(col, text=t(f"ana.col.{col}"))
+            self.tree.column(col, width=w, anchor="w")
+        self.tree.pack(fill="both", expand=True, pady=(8, 6))
+        for i in range(len(results)):
+            self.tree.insert("", "end", iid=str(i))
+            self._refresh(i)
+
+        edit = ttk.Frame(frm)
+        edit.pack(fill="x")
+        self.thumb = ttk.Label(edit)
+        self.thumb.grid(row=0, column=0, rowspan=4, padx=(0, 12))
+        self.countries = {country(k): k for k in COUNTRIES}
+        self.v_age = tk.IntVar(win, 18)
+        self.v_gender = tk.StringVar(win)
+        self.v_country = tk.StringVar(win)
+        self.v_country2 = tk.StringVar(win)
+        self.v_hair = tk.StringVar(win)
+        ttk.Label(edit, text=t("ana.col.age")).grid(row=0, column=1, sticky="w")
+        ttk.Spinbox(edit, from_=14, to=45, textvariable=self.v_age, width=5).grid(row=0, column=2, sticky="w")
+        ttk.Label(edit, text=t("ana.col.gender")).grid(row=0, column=3, sticky="w", padx=(12, 0))
+        ttk.Combobox(edit, textvariable=self.v_gender, values=[opt("gender", g) for g in GENDERS],
+                     state="readonly", width=12).grid(row=0, column=4, sticky="w")
+        names = sorted(self.countries, key=str.casefold)
+        ttk.Label(edit, text=t("ana.col.country")).grid(row=1, column=1, sticky="w")
+        ttk.Combobox(edit, textvariable=self.v_country, values=names, width=18).grid(row=1, column=2, sticky="w")
+        ttk.Label(edit, text=t("ana.col.country2")).grid(row=1, column=3, sticky="w", padx=(12, 0))
+        ttk.Combobox(edit, textvariable=self.v_country2, values=["—"] + names, width=22).grid(row=1, column=4,
+                                                                                             sticky="w")
+        ttk.Label(edit, text=t("ana.col.hair")).grid(row=2, column=1, sticky="w")
+        ttk.Entry(edit, textvariable=self.v_hair, width=60).grid(row=2, column=2, columnspan=3, sticky="ew")
+        self.caption = ttk.Label(edit, style="Hint.TLabel", wraplength=560, justify="left")
+        self.caption.grid(row=3, column=1, columnspan=4, sticky="w", pady=(4, 0))
+        for var in (self.v_age, self.v_gender, self.v_country, self.v_country2, self.v_hair):
+            var.trace_add("write", lambda *a: self._store())
+
+        btns = ttk.Frame(frm)
+        btns.pack(fill="x", pady=(12, 0))
+        ttk.Label(btns, text=t("ana.sources"), style="Hint.TLabel").pack(side="left")
+        ttk.Button(btns, text=t("btn.cancel"), command=win.destroy).pack(side="right")
+        ttk.Button(btns, text=t("ana.go"), style="Accent.TButton", command=self._go).pack(side="right", padx=6)
+        self.current: int | None = None
+        self._loading = False
+        self.tree.bind("<<TreeviewSelect>>", lambda e: self._load())
+        self.tree.selection_set("0")
+        theme.dark_title_bar(win, app.cfg.theme == "dark")
+        win.update_idletasks()
+        x = app.winfo_rootx() + (app.winfo_width() - win.winfo_reqwidth()) // 2
+        y = app.winfo_rooty() + (app.winfo_height() - win.winfo_reqheight()) // 3
+        win.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        win.bind("<Escape>", lambda e: win.destroy())
+        win.grab_set()
+        app.wait_window(win)
+
+    @staticmethod
+    def _src(a, key: str) -> str:
+        src = a.src.get(key)
+        return f" ({t('ana.src.' + src)})" if src else ""
+
+    def _refresh(self, i: int) -> None:
+        _f, _img, a = self.results[i]
+        self.tree.item(str(i), values=(
+            self.results[i][0].path.name, f"{a.age}{self._src(a, 'age')}",
+            opt("gender", a.gender) + self._src(a, "gender"), country(a.country) + self._src(a, "country"),
+            country_or_none(a.country2), pers_short(a.personality) or "—", a.hair or "—"))
+
+    def _load(self) -> None:
+        sel = self.tree.selection()
+        if not sel:
+            return
+        self.current = int(sel[0])
+        f, img, a = self.results[self.current]
+        self._loading = True
+        self.v_age.set(a.age)
+        self.v_gender.set(opt("gender", a.gender))
+        self.v_country.set(country(a.country))
+        self.v_country2.set(country_or_none(a.country2))
+        self.v_hair.set(a.hair)
+        self._loading = False
+        th = img.copy()
+        th.thumbnail((110, 110))
+        self._photo = ImageTk.PhotoImage(th)
+        self.thumb.configure(image=self._photo)
+        self.caption.configure(text=(t("ana.caption", text=a.caption[:180]) if a.caption else t("ana.no_caption")))
+
+    def _store(self) -> None:
+        if self._loading or self.current is None:
+            return
+        _f, _img, a = self.results[self.current]
+        try:
+            age = int(self.v_age.get())
+            if age != a.age:
+                a.age, a.src["age"] = max(14, min(45, age)), "manual"
+        except (tk.TclError, ValueError):
+            pass
+        genders = {opt("gender", g): g for g in GENDERS}
+        g = genders.get(self.v_gender.get())
+        if g and g != a.gender:
+            a.gender, a.src["gender"] = g, "manual"
+        k = self.countries.get(self.v_country.get())
+        if k and k != a.country:
+            a.country, a.src["country"] = k, "manual"
+        k2 = self.countries.get(self.v_country2.get(), NO_SECOND)
+        a.country2 = k2
+        if self.v_hair.get() != a.hair:
+            a.hair, a.src["hair"] = self.v_hair.get(), "manual"
+        self._refresh(self.current)
+
+    def _go(self) -> None:
+        self.ok = True
+        self.win.destroy()
+
+
 class ThemeSwitch(tk.Canvas):
     """Schiebeschalter Hell ⇄ Dunkel. Knopf links = hell (freie Fläche dunkel), Knopf rechts = dunkel
     (freie Fläche grau) – die freie Fläche zeigt also, wohin ein Klick umschaltet."""
@@ -426,6 +634,7 @@ class App(tk.Tk):
         self.minsize(1040, 680)
 
         self.cfg = settings_mod.load()
+        userlang.load_all()  # importierte Sprachen anmelden, bevor die gespeicherte Sprache gesetzt wird
         set_language(self.cfg.language)
         self._style()
         if self.cfg.ask_language:
@@ -457,6 +666,7 @@ class App(tk.Tk):
         self.forge = ForgeManager(settings_mod.config_dir() / "forge.log")
         # FaceDrop (nur lesen): erkannter Ordner, Inhalt (Hash -> Datei) für "✓ im Spiel" und Aufräumen
         self.gal_src = "own"           # Galerie-Tab zeigt: "own" = Speicherort, "fd" = FaceDrop
+        self.fm_export = fmdata.load_export()  # zuletzt geladener FM-Export (Alter, Land, Persönlichkeit)
         self.fd_dir: Path | None = None
         self.fd_info: facedrop.FaceDropInfo | None = None
         self.fd_index: dict[str, Path] = {}
@@ -749,7 +959,7 @@ class App(tk.Tk):
                     "output_dir", "pattern", "backend", "pollinations_url", "pollinations_model",
                     "pollinations_token", "sd_url", "list_name_mode", "list_parent_mode", "aging_ages",
                     "list_country", "list_country2", "personality", "personality_strength", "list_personality",
-                    "facedrop_cleanup", "gal_source", "fd_career"):
+                    "facedrop_cleanup", "gal_source", "fd_career", "aging_pers"):
             v[key] = tk.StringVar(self)
         for key in ("age_min", "age_max", "count", "gen_size", "sd_steps", "tattoo_min_age"):
             v[key] = tk.IntVar(self)
@@ -757,7 +967,7 @@ class App(tk.Tk):
             v[key] = tk.DoubleVar(self)
         v["forge_dir"] = tk.StringVar(self)
         for key in ("skin_details", "sharpen", "subfolder_per_country", "overwrite", "forge_autostart", "check_updates",
-                    "update_prereleases", "sd_fast"):
+                    "update_prereleases", "sd_fast", "faceid"):
             v[key] = tk.BooleanVar(self)
         # Alterungs-Set: Werte überleben den Neuaufbau (Sprache/Farbschema)
         old = getattr(self, "_aging_vals", (0, False))
@@ -1023,6 +1233,16 @@ class App(tk.Tk):
         self._row(t_, 16, t("lbl.delay"), ttk.Spinbox(t_, from_=0, to=60, textvariable=v["delay"], width=6))
         ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.sd_fast"), variable=v["sd_fast"]).grid(
             row=17, column=0, columnspan=2, sticky="w", padx=8, pady=(6, 0))
+        # Gesichts-Erweiterung (IP-Adapter FaceID): Person bleibt beim Altern besser erkennbar
+        ttk.Checkbutton(t_, style="Wrap.TCheckbutton", text=t("chk.faceid"), variable=v["faceid"]).grid(
+            row=18, column=0, columnspan=2, sticky="w", padx=8, pady=(6, 0))
+        fi = ttk.Frame(t_)
+        fi.grid(row=19, column=0, columnspan=2, sticky="w", padx=8)
+        self.faceid_status = ttk.Label(fi, style="Hint.TLabel", wraplength=250, justify="left")
+        self.faceid_status.pack(side="left")
+        self.faceid_btn = ttk.Button(fi, text=t("btn.faceid_dl"), command=self._download_faceid)
+        self.faceid_btn.pack(side="left", padx=(8, 0))
+        self._update_faceid_status()
 
 
     # ---- Update-Hinweis
@@ -1108,6 +1328,56 @@ class App(tk.Tk):
         state = getattr(self, "forge", None) and self.forge.state
         return {"starting": t("forge.starting_short"), "ready": t("forge.ready"), "external": t("forge.already"),
                 "failed": t("forge.failed_short")}.get(state or "", t("hint.forge"))
+
+    def _update_faceid_status(self) -> None:
+        if not hasattr(self, "faceid_status") or not self.faceid_status.winfo_exists():
+            return
+        state = faceid.installed(self.v["forge_dir"].get().strip() or self.cfg.forge_dir)
+        key = {True: "faceid.ok", False: "faceid.missing", None: "faceid.no_forge"}[state]
+        self.faceid_status.configure(text=t(key))
+        if state:
+            self.faceid_btn.pack_forget()
+
+    def _download_faceid(self) -> None:
+        forge_dir = self.v["forge_dir"].get().strip() or self.cfg.forge_dir
+        if faceid.models_dir(forge_dir) is None:
+            messagebox.showinfo(APP_NAME, t("faceid.no_forge"))
+            return
+        if self._busy() or getattr(self, "_faceid_dl", False):
+            return
+        if not messagebox.askyesno(APP_NAME, t("msg.faceid_dl_confirm", folder=faceid.models_dir(forge_dir))):
+            return
+        self._faceid_dl = True
+        self.faceid_btn.state(["disabled"])
+        self.progress.configure(maximum=1000, value=0)
+
+        def prog(done, total):
+            self.after(0, lambda: (self.progress.configure(value=min(1000, done * 1000 // total)),
+                                   self.status.config(text=t("status.faceid_dl", mb=done // 1_048_576,
+                                                             total=total // 1_048_576))))
+
+        def work():
+            err = ""
+            try:
+                faceid.download(forge_dir, prog)
+            except Exception as exc:  # noqa: BLE001
+                err = str(exc)[:200]
+            self.after(0, lambda: finish(err))
+
+        def finish(err):
+            self._faceid_dl = False
+            self.progress.configure(value=0)
+            if self.faceid_btn.winfo_exists():
+                self.faceid_btn.state(["!disabled"])
+            if err:
+                messagebox.showerror(APP_NAME, t("msg.faceid_dl_failed", e=err))
+            else:
+                self.v["faceid"].set(True)
+                self.status.config(text=t("status.faceid_done"))
+                messagebox.showinfo(APP_NAME, t("msg.faceid_done"))
+            self._update_faceid_status()
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _choose_forge_dir(self) -> None:
         d = filedialog.askdirectory(title=t("dlg.forge_dir"), initialdir=self.v["forge_dir"].get() or "C:\\")
@@ -1286,6 +1556,15 @@ class App(tk.Tk):
         ttk.Spinbox(row1, from_=0, to=20, textvariable=self.v["aging_plus"], width=4).pack(side="left", padx=(4, 0))
         ttk.Label(row1, text=t("aging.plus_years")).pack(side="left", padx=(4, 10))
         ttk.Button(row1, text=t("btn.create"), style="Accent.TButton", command=self._aging).pack(side="left")
+        row2 = ttk.Frame(aging)
+        row2.pack(fill="x", pady=(4, 0))
+        ttk.Label(row2, text=t("lbl.personality") + ":").pack(side="left")
+        self._ocombo(row2, "aging_pers", [AUTO_PERS] + list(PERSONALITIES),
+                     lambda k: t("pers.auto") if k == AUTO_PERS else personality(k), width=34,
+                     editable=True).pack(side="left", padx=(6, 0))
+        self._oset("aging_pers", AUTO_PERS)
+        self.export_info = ttk.Label(row2, text=self._export_text(), style="Hint.TLabel")
+        self.export_info.pack(side="left", padx=(8, 0))
         # nur in Galerie → FaceDrop: im Spiel ersetzen, Saison, Rückgängig
         self.aging_fd_row = ttk.Frame(aging)
         ttk.Checkbutton(self.aging_fd_row, text=t("chk.replace_ingame"), variable=self.v["replace_ingame"]).pack(
@@ -1501,6 +1780,7 @@ class App(tk.Tk):
         v["sd_steps"].set(b.sd_steps)
         v["sd_cfg"].set(b.sd_cfg)
         v["sd_fast"].set(b.sd_fast)
+        v["faceid"].set(b.faceid)
         v["gen_size"].set(b.gen_size)
         self._update_mix()
 
@@ -1565,6 +1845,7 @@ class App(tk.Tk):
         b.sd_steps = num("sd_steps", 30)
         b.sd_cfg = num("sd_cfg", 5.0, float)
         b.sd_fast = bool(v["sd_fast"].get())
+        b.faceid = bool(v["faceid"].get())
         b.gen_size = num("gen_size", 768)
 
     # ================================================================== Helfer
@@ -1873,6 +2154,10 @@ class App(tk.Tk):
                     self._update_list_info()
                     if run_kind in ("aging", "reroll"):
                         self._finish_aging()
+                        err = getattr(getattr(self.generator, "backend", None), "faceid_error", "")
+                        if err and self.cfg.backend.faceid:
+                            self.generator.backend.faceid_error = ""
+                            messagebox.showwarning(APP_NAME, t("msg.faceid_failed", e=err))
                     if self.gmode == "folder":
                         self._load_folder()
                 elif kind == "folder":
@@ -2563,6 +2848,13 @@ class App(tk.Tk):
         if replace and not local:
             messagebox.showinfo(APP_NAME, t("msg.replace_local_only"))
             return
+        foreign = [f for f in faces if f.source == "unknown"]
+        if foreign and local:
+            # fremde Bilder: erst analysieren + bestätigen lassen, danach geht es hier weiter
+            self._analyze_foreign(foreign, gen.backend, lambda: self._aging(faces, plus, replace, confirm))
+            return
+        manual = self._oget("aging_pers", AUTO_PERS)
+        pers_changed = 0
         stage = ingame.staging_dir() if replace else None
         jobs: list[Job] = []
         skipped: list[str] = []
@@ -2571,7 +2863,16 @@ class App(tk.Tk):
             if not local and face.source == "unknown":
                 skipped.append(face.path.name)
                 continue
-            js = aging_jobs(face, ages, relative=plus)
+            new_pers = None
+            if manual != AUTO_PERS:
+                new_pers = manual
+            elif self.fm_export is not None:
+                hit = self.fm_export.find(path=face.path)
+                if hit and hit.personality and hit.personality != face.options.personality:
+                    new_pers = hit.personality  # z. B. durch Mentoring in FM geändert
+            if new_pers and new_pers != face.options.personality:
+                pers_changed += 1
+            js = aging_jobs(face, ages, relative=plus, personality=new_pers)
             if not js:
                 if plus or face_age(face) is None:
                     skipped.append(face.path.name)
@@ -2599,8 +2900,53 @@ class App(tk.Tk):
                 return
         if not local:
             self.after(300, lambda: self.status.config(text=t("status.aging_online")))
+        elif pers_changed:
+            self.after(300, lambda: self.status.config(text=t("status.pers_changed", n=pers_changed)))
         self.run_skipped = skipped
         self._run(gen, jobs, "aging", retries=1 if len(jobs) > 1 else 0)
+
+    def _export_text(self) -> str:
+        e = self.fm_export
+        return t("aging.export", n=len(e), date=e.date_text) if e is not None and len(e) else t("aging.no_export")
+
+    # ---- fremde Bilder: analysieren (Forge-Bildbeschreibung, Hautton, FM-Export) und bestätigen lassen
+    def _analyze_foreign(self, faces: list[GeneratedFace], backend, then: Callable[[], None]) -> None:
+        fallback = copy.deepcopy(self.cfg.face)
+        export = self.fm_export
+        describe = getattr(backend, "describe", None)
+        results: list = []
+        self.status.config(text=t("status.analyzing", i=0, n=len(faces)))
+        self.progress.configure(mode="indeterminate")
+        self.progress.start(12)
+
+        state = {"i": 0, "done": False}
+
+        def work():
+            for i, f in enumerate(faces, 1):
+                img = analyze.prepare_base(f.image)
+                try:
+                    a = analyze.analyze(img, path=f.path, export=export, fallback=fallback, describe=describe)
+                except Exception:  # noqa: BLE001
+                    a = analyze.Analysis(country=fallback.country)
+                results.append((f, img, a))
+                state["i"] = i
+            state["done"] = True
+
+        def poll():  # Oberfläche nur aus dem Hauptthread anfassen
+            self.status.config(text=t("status.analyzing", i=state["i"], n=len(faces)))
+            if not state["done"]:
+                self.after(150, poll)
+                return
+            self.progress.stop()
+            self.progress.configure(mode="determinate", value=0)
+            self.status.config(text="")
+            if AnalysisDialog(self, results).ok:
+                for f, img, a in results:
+                    use_analysis(f, analyze.options_for(a, self.cfg.face), a.age, img)
+                then()
+
+        self.after(150, poll)
+        threading.Thread(target=work, daemon=True).start()
 
     @staticmethod
     def _name_list(names: list[str], limit: int = 12) -> str:
@@ -2845,6 +3191,10 @@ class App(tk.Tk):
             iid = self.tree.insert("", "end")
             self.players[iid] = p
             self._refresh_row(iid)
+        # für Saison +1 / fremde Bilder merken: echte Persönlichkeit, Alter und Nationalität aus FM
+        self.fm_export = fmdata.save_export(players, str(path))
+        if hasattr(self, "export_info") and self.export_info.winfo_exists():
+            self.export_info.configure(text=self._export_text())
         self._mark_existing_images()
         self._update_list_info()
         if warnings:

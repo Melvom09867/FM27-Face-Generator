@@ -35,6 +35,7 @@ LANGUAGES = {  # Reihenfolge in der Sprachauswahl
     "zh": "简体中文",
 }
 DEFAULT = "de"
+USER: dict[str, dict] = {}  # importierte Sprachen (userlang.py): Code -> {"text": {...}, "option": {...}, …}
 
 _lang = DEFAULT
 
@@ -47,6 +48,9 @@ def set_language(code: str) -> None:
 def language_label(code: str) -> str:
     """Name in der Sprachauswahl – alle Übersetzungen außer Deutsch sind KI-erstellt und so gekennzeichnet."""
     name = LANGUAGES.get(code, code)
+    if code in USER:
+        # Kennzeichnung in der aktuellen (eingebauten) Sprache – nie aus der importierten Datei
+        return f"{name} ({t('lang.user', lang=_lang if _lang not in USER else 'en')})"
     return name if code == "de" else f"{name} ({t('lang.ai', lang=code)})"
 
 
@@ -81,7 +85,15 @@ def t(key: str, lang: str | None = None, **kw) -> str:
     if row is None:
         return key
     code = lang if lang in LANGUAGES else _lang
-    if code in LANGS:
+    if code in USER:
+        text = USER[code]["text"].get(key) or _pick(row, "en")
+        if key == "lang.user":  # Kennzeichnung nie aus der importierten Datei
+            text = _pick(row, "en")
+        try:
+            return text.format(**kw) if kw else text
+        except (KeyError, IndexError, ValueError):
+            text = _pick(row, "en")
+    elif code in LANGS:
         text = _pick(row, code)
     else:
         text = _extra(code).STRINGS.get(key) or _pick(row, _base(code))
@@ -94,6 +106,9 @@ def opt(category: str, key: str) -> str:
     row = OPTIONS.get(category, {}).get(key) or OPTIONS.get("_common", {}).get(key)
     if not row:
         return key
+    if _lang in USER:
+        u = USER[_lang]["option"]
+        return u.get(f"{category}|{key}") or u.get(f"_common|{key}") or _pick(row, "en")
     if _lang in LANGS:
         return _pick(row)
     o = _extra(_lang).OPTIONS
@@ -108,6 +123,8 @@ def country(name_de: str) -> str:
     row = NAMES.get(name_de)
     if not row:
         return name_de
+    if _lang in USER:
+        return USER[_lang]["country"].get(name_de) or row[CL.index("en")]
     if _lang in CL:
         return row[CL.index(_lang)] or row[0]
     from .country_names_extra import NAMES as EX
@@ -117,6 +134,8 @@ def country(name_de: str) -> str:
 def ethnicity(key: str) -> str:
     from .data import ETHNICITIES
     from .locales import ETHNICITY_NAMES
+    if key in ETHNICITY_NAMES and _lang in USER:
+        return USER[_lang]["ethnicity"].get(key) or _pick(("",) + ETHNICITY_NAMES[key], "en")
     if key in ETHNICITY_NAMES and _lang != "de":
         row = ("",) + ETHNICITY_NAMES[key]
         if _lang in LANGS:
@@ -136,6 +155,9 @@ def personality(key: str) -> str:
         return key
     if _lang == "en":
         return en or key
+    if _lang in USER:
+        local = USER[_lang]["personality"].get(key)
+        return f"{local} ({en})" if local and local != en else (en or key)
     row = PERSONALITY_NAMES.get(key)
     if not row:
         return en or key

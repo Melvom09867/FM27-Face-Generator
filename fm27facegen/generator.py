@@ -165,7 +165,11 @@ class Generator:
             job.init_image = job.base_image
             job.rebuild_base = False
         if job.init_image is not None and img2img:
-            raw = self.backend.img2img(fp, job.init_image, AGING_STRENGTH)
+            ref = job.base_image if job.base_image is not None else job.init_image
+            if getattr(self.backend, "supports_faceid", False):
+                raw = self.backend.img2img(fp, job.init_image, AGING_STRENGTH, face_ref=ref)
+            else:
+                raw = self.backend.img2img(fp, job.init_image, AGING_STRENGTH)
         else:
             raw = self.backend.generate(fp)
         return fp, raw
@@ -285,6 +289,17 @@ class Generator:
             pass  # Protokoll ist nur ein Extra – Bild ist trotzdem gespeichert
 
 
+def use_analysis(face: GeneratedFace, options: FaceOptions, age: int, base: Image.Image) -> GeneratedFace:
+    """Fremdes Bild nach der Analyse wie ein eigenes behandeln: Beschreibung + Alter aus der Analyse,
+    das (zugeschnittene) Bild selbst ist das Ausgangsbild für alle weiteren Alterungen."""
+    face.options = options
+    face.prompt = build_prompt(options, seed=random.randint(1, 2**31 - 1), age=int(age))
+    face.source = "analyzed"
+    face.legacy = False
+    face.base, face.base_age, face.raw = base, int(age), None
+    return face
+
+
 def face_age(face: GeneratedFace) -> int | None:
     """Gespeichertes Alter eines Bildes (None = unbekannt, z. B. fremdes Bild ohne Infos)."""
     if face.source == "unknown":
@@ -307,10 +322,11 @@ def aging_name(stem: str, age: int) -> str:
     return f"{stem}_{age}J"
 
 
-def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0) -> list[Job]:
+def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0, personality: str | None = None) -> list[Job]:
     """Jobs für ein Alterungs-Set: gleicher Seed + gleiche Merkmale, nur das Alter ändert sich.
 
-    relative > 0: statt fester Alter das gespeicherte Alter um so viele Jahre erhöhen (z. B. +4)."""
+    relative > 0: statt fester Alter das gespeicherte Alter um so viele Jahre erhöhen (z. B. +4).
+    personality: neue Persönlichkeit (z. B. nach Mentoring in FM) – Gesicht bleibt, Ausdruck/Stil ändern sich."""
     base_age = face_age(face)
     if relative:
         if base_age is None:
@@ -335,6 +351,8 @@ def aging_jobs(face: GeneratedFace, ages: list[int], relative: int = 0) -> list[
         job = Job(options=copy.deepcopy(face.options), seed=face.prompt.seed, age=age,
                   filename=aging_name(stem, age), init_image=origin, base_image=origin, base_age=origin_age,
                   rebuild_base=rebuild)
+        if personality and not face.legacy:
+            job.options.personality = personality
         if face.legacy:
             job.prompt_text = reage_prompt(face.prompt.prompt, age, gender)
             job.meta = dict(face.prompt.meta)

@@ -257,6 +257,22 @@ It sets the **facial expression** and adds matching **features**, for example:
 3. Click **"Create"**. The age in the file name changes too: `Germany_16J_Ambitious_123.png` becomes
    `Germany_20J_Ambitious_123.png`. Without an age in the name (e.g. renamed), `_20J` is appended.
 
+4. **Personality:** below it, **"Personality: Automatic (FM export)"**. If a player list from FM was loaded, every
+   player takes his **current personality from FM** when ageing (and with "Season +1"), e.g. after a mentoring
+   group. The face stays, expression and style adapt. You can also pick a personality by hand.
+
+**Other images** (not made by the generator, e.g. real photos) can be aged too (local Forge only). They are
+analysed first: **age, nationality, 2nd nationality and personality** from the FM export (matched by the player ID
+in the FaceDrop file name), **gender and hair** from Forge's image description, **skin tone** measured. A window
+shows everything with its source – check, change if needed and click **"Continue – age"**.
+
+**Face extension (optional):** AI tab → tick **"Keep the face when ageing"** and click **"Download (approx.
+1.9 GB)"** (the Forge folder must be set). Restart Forge once. Forge then gets the base face as a reference
+(IP-Adapter FaceID) and the person stays much more recognisable.
+
+**Own language:** the language window has **"Export language…"** (CSV for Excel) and **"Import language…"**.
+Imported languages are marked **"(not from the generator)"**; broken texts or wrong placeholders are rejected.
+
 ### Replace in game, season and undo (Gallery → FaceDrop)
 
 - Tick **"Replace in game"**: the new image gets the FaceDrop name (e.g. `newgen_2002044702.png`) and replaces the

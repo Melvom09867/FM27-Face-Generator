@@ -172,6 +172,9 @@ class FaceOptions:
     personality: str = NO_PERSONALITY
     personality_strength: str = "Normal"
     tattoo_min_age: int = 16
+    # Fremde Bilder: aus dem Bild erkannte Haare/Merkmale (ersetzt die gewürfelten Haare)
+    hair_text: str = ""
+    look_text: str = ""
 
 
 @dataclass
@@ -336,9 +339,13 @@ def build_prompt(opts: FaceOptions, seed: int | None = None, age: int | None = N
     style_map = HAIR_STYLES_FEMALE if gender == "female" else HAIR_STYLES_MALE
     hair_style = style_map.get(opts.hair_style) or drawn_style
     hair = f"{hair_color} hair, {hair_style}"
+    if opts.hair_text.strip():
+        hair = opts.hair_text.strip()
 
     # --- Gesicht -----------------------------------------------------------------------
     parts_face: list[str] = list(_age_features(age, gender))
+    if opts.look_text.strip():
+        parts_face.insert(0, opts.look_text.strip())
     fh_roll = rng.random()
     if gender == "male":
         fixed = FACIAL_HAIR.get(opts.facial_hair)
